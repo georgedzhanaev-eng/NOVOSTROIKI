@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Переселение из АЖФ в Новостройки</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://api-maps.yandex.ru/2.1/?apikey=904e9ba6-8848-4b42-a871-82002e05c23a&lang=ru_RU"></script>
+<style>
+:root{
+  --bg:#eceee9;
+  --surface:#ffffff;
+  --surface-2:#f6f7f4;
+  --ink:#0f1317;
+  --ink-2:#454c55;
+  --muted:#767d87;
+  --hair:rgba(15,19,23,.12);
+  --hair-soft:rgba(15,19,23,.07);
+  --track:rgba(15,19,23,.08);
+  --c-agr:#0e7361;
+  --c-cert:#1b4d8f;
+  --c-buy:#a96a15;
+  --c-ten:#4a5a6e;
+  --c-own:#6c4a86;
+  --focus:#1b4d8f;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--ink);
+  font-family:'IBM Plex Sans',system-ui,-apple-system,Segoe UI,sans-serif;
+  font-size:14px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  font-variant-numeric:tabular-nums;
+}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:none;text-align:left}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+
+.ctrl{
+  border:1px solid var(--hair);background:var(--surface);
+  border-radius:8px;padding:8px 14px;font-size:13px;font-weight:500;
+  transition:border-color .15s,background .15s;
+}
+.ctrl:hover{border-color:var(--ink-2)}
+.ctrl[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+
+#tools{position:fixed;top:14px;left:14px;z-index:30;display:flex;gap:8px}
+#tabs{position:fixed;top:14px;right:14px;z-index:30;display:flex;gap:8px}
+#view-map{padding-top:40px;display:flex;flex-direction:column;gap:24px}
+#map,#map30{height:calc(100vh - 170px);min-height:480px;border-radius:0 0 14px 14px;overflow:hidden}
+#geo-modal{position:fixed;inset:0;z-index:60;background:rgba(15,19,23,.45);display:flex;align-items:center;justify-content:center;padding:20px}
+#geo-modal[hidden]{display:none!important}
+.geo-box{background:var(--surface);border-radius:14px;width:min(1000px,96vw);max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+#geo-text{flex:1;min-height:50vh;margin:10px 18px 18px;border:1px solid var(--hair);border-radius:8px;padding:10px;
+  font:12px/1.5 ui-monospace,Consolas,monospace;resize:none;white-space:pre;overflow:auto;background:var(--surface-2);color:var(--ink)}
+.geo-exp{margin-left:8px}
+#view-do30{padding-top:40px;display:flex;flex-direction:column;gap:24px}
+#map30-note{margin-left:auto;font-size:12px;color:var(--muted)}
+.geo-sum{display:flex;flex-wrap:wrap;gap:8px;padding:12px 18px;border-bottom:1px solid var(--hair-soft)}
+.geo-chip{cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--hair);border-radius:8px;background:var(--surface-2);font-size:12px;color:var(--ink-2)}
+.geo-chip b{font-size:14px;color:var(--ink);font-variant-numeric:tabular-nums}
+.geo-chip i{width:9px;height:9px;border-radius:2px;display:inline-block}
+.geo-chip:hover{border-color:var(--ink-2)}
+.geo-chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.geo-chip[aria-pressed="true"] b{color:var(--surface)}
+.geo-list .item{grid-template-columns:28px minmax(0,1fr) 170px 64px}
+.geo-list .item-cat{font-size:12px;display:flex;align-items:center;gap:6px;color:var(--ink-2)}
+.geo-list .item-cat i{width:9px;height:9px;border-radius:2px;flex:none}
+.geo-list .scroll{max-height:520px}
+@media(max-width:640px){.geo-list .item{grid-template-columns:24px minmax(0,1fr) 56px}.geo-list .item-cat{display:none}}
+#map-note{margin-left:auto;font-size:12px;color:var(--muted)}
+.map-legend{display:flex;gap:8px}
+.map-legend .ctrl{padding:5px 10px;font-size:12px;border-radius:7px;display:flex;align-items:center;gap:6px}
+.map-legend i{display:inline-block;width:10px;height:10px;border-radius:2px}
+.map-clu{width:34px;height:34px;border-radius:50%;color:#fff;font:700 14px/1 'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;
+  border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);transform:translate(-50%,-50%);cursor:pointer}
+@keyframes spotGlow{0%,100%{filter:drop-shadow(0 0 2px #3fa9ff) drop-shadow(0 0 4px #3fa9ff)}50%{filter:drop-shadow(0 0 7px #8fd0ff) drop-shadow(0 0 14px #1e7bff) brightness(1.3)}}
+@keyframes spotTwinkle{0%,100%{opacity:.2;transform:scale(.6) rotate(0)}50%{opacity:1;transform:scale(1.2) rotate(45deg)}}
+.spot-ico{position:absolute;left:-15px;top:-26px;width:30px;height:30px;animation:spotGlow 1.3s ease-in-out infinite}
+.spot-ico img{display:block;width:30px;height:30px}
+.spot-ico::after{content:'✦';position:absolute;right:-7px;top:-9px;color:#bfe6ff;font-size:13px;text-shadow:0 0 4px #1e7bff;animation:spotTwinkle 1.3s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.spot-ico,.spot-ico::after{animation:none}}
+.dist-label{background:#1e8a4c;color:#fff;font:600 12px/1 'IBM Plex Sans',sans-serif;padding:4px 7px;border-radius:6px;
+  white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.25);transform:translate(-50%,-50%);display:inline-block}
+@media(max-width:640px){#map,#map30{height:420px;min-height:0}}
+#to-top{position:fixed;right:18px;bottom:18px;z-index:30;width:44px;height:44px;padding:0;
+  border-radius:50%;font-size:18px;line-height:1;box-shadow:0 6px 18px rgba(15,19,23,.14)}
+[hidden]{display:none!important}
+#view-main{display:flex;flex-direction:column;gap:24px}
+
+main{padding:16px 28px 32px;display:flex;flex-direction:column;gap:24px;max-width:1720px}
+.row-lead{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+.row-lists{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.row-lead.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.row-lead.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.row-lead.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+
+/* ── округа: первая строка ─────────────────────────── */
+.okr-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.okr-card{width:100%;background:var(--surface);border:1px solid var(--hair);border-radius:14px;
+  padding:26px 18px 22px;position:relative;overflow:hidden;text-align:center;
+  transition:border-color .15s,box-shadow .15s}
+.okr-card::before{content:"";position:absolute;inset:0 auto auto 0;width:100%;height:3px;background:var(--tone)}
+.okr-card:hover{border-color:var(--tone)}
+.okr-card[aria-pressed="true"]{border-color:var(--tone);box-shadow:0 0 0 2px var(--tone) inset}
+.okr-name{display:block;font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.okr-card .tile-area{margin-top:14px;text-align:left}
+
+/* ── заголовок ─────────────────────────────────────── */
+.plan{display:flex;flex-direction:column;align-items:center;gap:18px}
+.plan-title{font-size:22px;font-weight:700;letter-spacing:.01em;text-align:center;text-transform:uppercase}
+
+/* ── плитки ────────────────────────────────────────── */
+.tile{
+  width:100%;background:var(--surface);border:1px solid var(--hair);border-radius:14px;
+  padding:18px 18px 16px;display:flex;flex-direction:column;gap:14px;
+  position:relative;overflow:hidden;transition:border-color .15s,box-shadow .15s;
+}
+.tile::before{content:"";position:absolute;inset:0 auto auto 0;width:100%;height:3px;background:var(--tone)}
+.tile:hover{border-color:var(--tone)}
+.tile[aria-pressed="true"]{border-color:var(--tone);box-shadow:0 0 0 2px var(--tone) inset}
+.tile-head{display:flex;align-items:flex-start;gap:12px}
+.tile-name{font-size:13px;font-weight:600;letter-spacing:-.005em;flex:1}
+.ring{flex:none}
+.ring text{font-size:11px;font-weight:600;fill:var(--ink);font-family:inherit}
+.tile-figs{display:flex;align-items:baseline;gap:10px}
+.fig{font-size:34px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.fig-unit{font-size:13px;color:var(--muted);font-weight:500}
+.tile-area{font-size:14px;color:var(--ink-2);font-weight:500;display:flex;justify-content:space-between;gap:8px;
+  border-top:1px solid var(--hair-soft);padding-top:10px}
+.tile-miss{font-size:12px;color:var(--muted);border-top:1px solid var(--hair-soft);padding-top:10px}
+.tile-area span:first-child{color:var(--muted);font-size:12px;font-weight:400;align-self:center}
+
+/* ── панели со списками ────────────────────────────── */
+.panel{background:var(--surface);border:1px solid var(--hair);border-radius:14px;display:flex;flex-direction:column;min-height:0}
+.panel-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 18px 14px;border-bottom:1px solid var(--hair-soft)}
+.panel-title{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.swatch{width:9px;height:9px;border-radius:2px;background:var(--tone);flex:none}
+.sortgroup{display:flex;gap:6px}
+.sortgroup .ctrl{padding:5px 10px;font-size:12px;border-radius:7px}
+.scroll{overflow-y:auto;max-height:420px;padding:8px 8px 12px}
+.scroll::-webkit-scrollbar{width:8px}
+.scroll::-webkit-scrollbar-thumb{background:var(--track);border-radius:99px}
+.item{width:100%;display:grid;grid-template-columns:22px minmax(96px,1.1fr) minmax(60px,2fr) 52px 84px;
+  align-items:center;gap:10px;padding:9px 10px;border-radius:9px;transition:background .15s,box-shadow .15s}
+.item:nth-child(odd){background:var(--surface-2)}
+.item:hover{background:var(--track)}
+.item[aria-pressed="true"]{box-shadow:0 0 0 1.5px var(--tone) inset}
+.item-rank{font-size:11px;color:var(--muted);text-align:right}
+.item-name{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{height:8px;border-radius:99px;background:var(--track);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--tone);width:0;transition:width .4s ease}
+.item-cnt{font-size:14px;font-weight:600;text-align:right}
+.item-area{font-size:12px;color:var(--ink-2);text-align:right}
+.item-name.wrap{white-space:normal;overflow:visible;line-height:1.35;overflow-wrap:anywhere}
+#scroll-newAddr .item.jkd{grid-template-columns:22px minmax(0,1.7fr) minmax(40px,1fr) 72px 104px;cursor:default}
+#scroll-newAddr .item.jkd:hover{background:inherit}
+.jk-from{margin-left:auto;font-size:11px;color:var(--muted);max-width:55%;text-align:right;line-height:1.35}
+.jk-from b{color:var(--ink-2);font-weight:600}
+#scroll-house .item{grid-template-columns:22px minmax(140px,2.4fr) minmax(40px,.7fr) 112px 84px}
+.cnt3{white-space:nowrap}
+.cnt3 .c-res{color:var(--c-agr)}
+.cnt3 .c-rest{color:var(--c-buy)}
+.cnt3 .sl{color:var(--muted);font-weight:400;margin:0 2px}
+.cnt-legend{margin-left:auto;font-size:11px;color:var(--muted)}
+.cnt-legend b{font-weight:600}
+.item.do30{--tone:#c0392b}
+.item.do30 .item-name{color:#c0392b;font-weight:600}
+.item.do30 .addr-okrug{color:#c0392b;opacity:.75}
+.addr-okrug{display:block;font-size:10.5px;color:var(--muted);font-weight:500;margin-bottom:2px}
+.panel-cnt{font-size:15px;font-weight:700;color:var(--tone);margin-left:4px;font-variant-numeric:tabular-nums}
+.empty{padding:28px 16px;color:var(--muted);font-size:13px}
+
+/* ── фильтры ───────────────────────────────────────── */
+.filters{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:14px 18px}
+.filters label{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.filters select{
+  font:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--surface-2);
+  border:1px solid var(--hair);border-radius:8px;padding:8px 12px;max-width:260px;cursor:pointer}
+
+.notice{background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:22px;font-size:13px;color:var(--ink-2);line-height:1.6}
+.notice h2{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:8px}
+.notice ol{margin:8px 0 14px 18px}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:1180px){
+  .row-lead,.row-lead.three{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .row-lists{grid-template-columns:1fr}
+  .okr-row,.row-lead.four{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:900px){
+  .plan-title{font-size:18px}
+}
+@media (max-width:640px){
+  main{padding:56px 14px 24px;gap:16px}
+  .row-lead,.row-lead.two,.row-lead.three,.row-lead.four,.okr-row{grid-template-columns:1fr}
+  .okr-name{font-size:24px}
+  .fig{font-size:30px}
+  .item{grid-template-columns:20px minmax(80px,1fr) 46px 76px;gap:8px}
+  .item .bar{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="tools">
+  <button class="ctrl" id="reset" type="button">Сбросить</button>
+  <button class="ctrl" id="reload" type="button">Обновить</button>
+</div>
+<div id="tabs">
+  <button class="ctrl" id="nav-do30" type="button" aria-pressed="false">До 30%</button>
+  <button class="ctrl" id="nav-map" type="button" aria-pressed="false">Карта</button>
+</div>
+<button class="ctrl" id="to-top" type="button" hidden aria-label="Наверх" title="Наверх">↑</button>
+
+<main>
+<div id="view-main">
+  <section class="plan" aria-label="Заголовок">
+    <div class="plan-title">Переселение из АЖФ в Новостройки</div>
+  </section>
+
+  <section class="okr-row" id="row-okr" aria-label="Округа"></section>
+  <section class="row-lead three" id="row-sum" aria-label="Всего, расселено, остаток"></section>
+  <section class="row-lead four" id="row-str" aria-label="Дома, жилые помещения, собственники, наниматели"></section>
+  <section class="row-lead two" id="row-sec" aria-label="Второе жильё"></section>
+  <section class="row-lists" id="row-addr" aria-label="Адреса"></section>
+</div>
+
+<div id="view-do30" hidden>
+  <section class="panel" style="--tone:#c0392b">
+    <div class="panel-head"><div class="panel-title"><span class="swatch"></span>Дома с остатком до 30%</div>
+      <button class="ctrl geo-exp" type="button" data-geoexp="1" style="padding:5px 10px;font-size:12px">Выгрузить координаты</button>
+      <span id="map30-note"></span></div>
+    <div id="map30"></div>
+  </section>
+  <section class="panel geo-list" style="--tone:#c0392b">
+    <div class="panel-head"><div class="panel-title"><span class="swatch"></span><span id="list30-title">Список домов</span></div>
+      <span class="panel-cnt" id="list30-cnt"></span></div>
+    <div class="scroll" id="list30"></div>
+  </section>
+</div>
+
+<div id="view-map" hidden>
+  <section class="panel" style="--tone:var(--c-buy)">
+    <div class="panel-head"><div class="panel-title"><span class="swatch"></span>Аварийные дома</div>
+      <button class="ctrl geo-exp" type="button" data-geoexp="1" style="padding:5px 10px;font-size:12px">Выгрузить координаты</button>
+      <div class="map-legend" role="group" aria-label="Какие дома показать">
+        <button class="ctrl" type="button" data-mapf="red" aria-pressed="false"><i style="background:#c0392b"></i>Остаток до 30%</button>
+        <button class="ctrl" type="button" data-mapf="other" aria-pressed="false"><i style="background:#a96a15"></i>Остальные дома</button>
+        <button class="ctrl" type="button" data-mapf="jk" aria-pressed="false"><i style="background:#1e8a4c"></i>Новостройки (ЖК)</button>
+        <button class="ctrl" type="button" id="btn-spots" aria-pressed="false"><i style="background:#1e7bff"></i>Пятна застройки</button></div>
+      <span id="map-note"></span></div>
+    <div id="map"></div>
+  </section>
+</div>
+
+  <div id="notice"></div>
+</main>
+
+<div id="geo-modal" hidden role="dialog" aria-modal="true" aria-labelledby="geo-modal-title">
+  <div class="geo-box">
+    <div class="panel-head"><div class="panel-title" id="geo-modal-title">Координаты из кэша</div>
+      <span id="geo-modal-cnt" style="font-size:12px;color:var(--muted)"></span>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="ctrl" type="button" id="geo-copy">Скопировать</button>
+        <button class="ctrl" type="button" id="geo-close" aria-label="Закрыть">✕</button></div></div>
+    <p style="font-size:12px;color:var(--ink-2);padding:10px 18px 0">Скопируйте текст целиком и пришлите в чат — координаты будут встроены в дашборд.</p>
+    <textarea id="geo-text" readonly spellcheck="false"></textarea>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ═══ 1. Источник данных ══════════════════════════════════════════════
+   Таблица «Ликвидация аварийного жилья», вкладка «Для Дашборда/ГИН».
+   Столбцы находятся по заголовкам: Округ, Населенный пункт, Адрес МКД,
+   Номер ж/п, Тип собст-ти, Площадь, Статус, Название ЖК, Комнатность,
+   Площадь ж/п в ЖК.                                                    */
+var SHEET_ID = '1Cknhc3pac1ICkfUtxAX1e2FhTF8LpYqfoCuBfDYthaY';
+var GID      = '1042951315';
+/* Ссылка «Опубликовать в интернете» на вкладку в формате CSV.
+   Нужна, если к таблице закрыт доступ по ссылке. Пусто — не используется. */
+var PUB_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRenAtjnIK6_kE_rsQva52qyI7Z28Eb_tpIkWQA_6-lNfa_DNbjomx8LlaNo8_47t37aGUAB1Yr5OyB/pub?gid=1042951315&single=true&output=csv';
+
+function sources(){
+  var t = Date.now();
+  var csv  = 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/export?format=csv&gid='+GID+'&_='+t;
+  var gviz = 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=0&gid='+GID+'&_='+t;
+  var direct = [{ name:'Google gviz (скрипт)', jsonp:true }];
+  if(PUB_CSV) direct.push({ name:'Опубликованный CSV', url:PUB_CSV + (PUB_CSV.indexOf('?')>=0 ? '&' : '?') + '_=' + t });
+  direct.push({ name:'Google gviz', url:gviz }, { name:'Google export', url:csv });
+  return {
+    direct: direct,
+    proxy: [
+      { name:'Прокси allorigins', url:'https://api.allorigins.win/raw?url='+encodeURIComponent(csv) },
+      { name:'Прокси codetabs',   url:'https://api.codetabs.com/v1/proxy/?quest='+encodeURIComponent(csv) },
+      { name:'Прокси corsproxy',  url:'https://corsproxy.io/?url='+encodeURIComponent(csv) }
+    ]
+  };
+}
+
+/* ═══ 2. Нормализация ════════════════════════════════════════════════ */
+function norm(v){ return String(v==null?'':v).replace(/\u00a0/g,' ').replace(/ё/gi,'е').replace(/\s+/g,' ').trim().toLowerCase(); }
+function clean(v){ var s = String(v==null?'':v).replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim(); return /^[-–—]$/.test(s) ? '' : s; }
+function num(v){
+  /* Первое число в ячейке: «45,6 м2» → 45.6, «1 234,5 кв.м» → 1234.5 */
+  var s = String(v==null?'':v).replace(/[\u00a0\u202f]/g,' ').replace(/(\d)\s+(?=\d)/g,'$1');
+  var m = s.match(/-?\d+(?:[.,]\d+)*/);
+  if(!m) return 0;
+  var t = m[0];
+  if(t.indexOf(',')>-1 && t.indexOf('.')>-1) t = t.replace(/,/g,'');
+  else t = t.replace(',','.');
+  var x = parseFloat(t);
+  return isFinite(x) ? x : 0;
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+var fmtInt  = new Intl.NumberFormat('ru-RU');
+var fmtArea = new Intl.NumberFormat('ru-RU',{minimumFractionDigits:1,maximumFractionDigits:1});
+
+/* Номера столбцов определяются по строке заголовков. */
+var COL = null;
+function detectCols(head){
+  var h = (head||[]).map(norm);
+  function find(p){ for(var i=0;i<h.length;i++) if(h[i] && p(h[i])) return i; return -1; }
+  return {
+    okrug:  find(function(s){ return s.indexOf('округ')>=0; }),
+    np:     find(function(s){ return s.indexOf('населен')>=0; }),
+    addr:   find(function(s){ return s.indexOf('адрес')>=0; }),
+    apt:    find(function(s){ return s.indexOf('номер')>=0; }),
+    tenure: find(function(s){ return s.indexOf('собст')>=0; }),
+    area:   6,                              // площадь — всегда столбец G
+    newAddr: 11,                            // адрес предоставляемый — столбец L
+    status: find(function(s){ return s.indexOf('статус')>=0; }),
+    jk:     find(function(s){ return s.indexOf('жк')>=0 && s.indexOf('площад')<0; }),
+    rooms:  find(function(s){ return s.indexOf('комнат')>=0; }),
+    jkArea: find(function(s){ return s.indexOf('площад')>=0 && s.indexOf('жк')>=0; }),
+    second: find(function(s){ return s.indexOf('второ')>=0; })
+  };
+}
+function cell(r, k){ return COL && COL[k] >= 0 ? clean(r[COL[k]]) : ''; }
+
+function okrugName(r){ return cell(r,'okrug'); }
+function areaOf(r){ return num(cell(r,'area')); }
+function jkAreaOf(r){ return num(cell(r,'jkArea')); }
+function statusOf(r){ return cell(r,'status') || 'Не указан'; }
+function tenureOf(r){ return cell(r,'tenure') || 'Не указан'; }
+function jkOf(r){ return cell(r,'jk'); }
+function newAddrOf(r){ return cell(r,'newAddr'); }
+function roomsOf(r){
+  var s = norm(cell(r,'rooms'));
+  if(!s) return 'Не указано';
+  if(s.indexOf('студ')>=0) return 'Студия';
+  var m = s.match(/(\d+)/);
+  return m ? m[1]+'-комн.' : cell(r,'rooms');
+}
+function roomsOrder(v){ if(v==='Студия') return 0; var m=/^(\d+)-комн/.exec(v); return m ? +m[1] : (v==='Не указано' ? 1000 : 999); }
+
+/* ═══ 3. Показатели ══════════════════════════════════════════════════
+   Расселено — статус «Расселено».
+   Остаток — статус «Подлежит расселению».
+   Собственники — «Частная», наниматели — «Муниципальная» (столбец «Тип собст-ти»).              */
+function isResettled(r){
+  var s = norm(cell(r,'status'));
+  return s.indexOf('расселен') === 0;               // «Расселено»
+}
+function isRemaining(r){
+  return norm(cell(r,'status')).indexOf('подлежит') === 0;   // «Подлежит расселению»
+}
+/* Тип собст-ти: «Частная» — собственники, «Муниципальная» — наниматели. */
+function isOwner(r){ var s = norm(tenureOf(r)); return s.indexOf('частн')>=0 || s.indexOf('собственник')>=0; }
+function isTenant(r){ var s = norm(tenureOf(r)); return s.indexOf('муницип')>=0 || s.indexOf('наним')>=0; }
+/* Единый формат адреса для показа: «г. Одинцово, ш. Буденновское, д. 11».
+   Убирается «обл. Московская» и «р-н. …» (если после него есть город); если город не указан, подставляется округ;
+   пробелы и «д.46» → «д. 46» выравниваются. На сопоставление и координаты не влияет. */
+function fmtAddr(raw, okrug){
+  var s = String(raw==null?'':raw).replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
+  s = s.replace(/^(обл\.?\s*московская|московская\s+обл(\.|асть)?)\s*,\s*/i, '');
+  s = s.replace(/(^|,\s*)р-н\.?\s*[^,]*,\s*(?=г\.\s)/i, '$1');   // «р-н.» убирается, если дальше указан город
+  s = s.replace(/\s*,\s*/g, ', ').replace(/(^|[\s,])(д|дом)\.(?=\d)/g, '$1$2. ').replace(/^,\s*/, '');
+  if(okrug && !/^г\.\s/i.test(s)){
+    var city = String(okrug).trim();
+    if(norm(s).indexOf(norm(city)) !== 0) s = 'г. ' + city + ', ' + s;
+  }
+  return s;
+}
+function houseOf(r){ return norm(okrugName(r))+'|'+norm(cell(r,'np'))+'|'+norm(cell(r,'addr')); }
+function always(){ return true; }
+
+var OKRS = [
+  { key:'d1', title:'Одинцовский', stem:'одинцов' },
+  { key:'d2', title:'Красногорск', stem:'красногорск' },
+  { key:'d3', title:'Химки',       stem:'химки' },
+  { key:'d4', title:'Домодедово',  stem:'домодедов' }
+];
+
+var SUM = [
+  { key:'all',  name:'Всего',     tone:'var(--c-agr)',  slot:'res', val:null,  test:always },
+  { key:'res',  name:'Расселено', tone:'var(--c-cert)', slot:'res', val:'yes', test:isResettled },
+  { key:'rest', name:'Остаток',   tone:'var(--c-buy)',  slot:'res', val:'no',  test:isRemaining }
+];
+/* Второе жильё: столбец с заголовком «Второе жильё».
+   «Да» / «Есть» — есть второе жильё, остальное (в т.ч. пусто) — нет. */
+function hasSecond(r){ var s = norm(cell(r,'second')); return s.indexOf('да')===0 || s.indexOf('есть')===0; }
+var SEC = [
+  { key:'sec-yes', name:'Есть второе жильё', tone:'var(--c-own)', slot:'second', val:'yes', test:hasSecond, needCol:'second' },
+  { key:'sec-no',  name:'Нет второго жилья', tone:'var(--c-cert)', slot:'second', val:'no',  test:function(r){ return !hasSecond(r); }, needCol:'second' }
+];
+var STR = [
+  { key:'houses', name:'Дома',         tone:'var(--c-ten)',  slot:'tenKind', val:null,  test:always, houses:true },
+  { key:'apt',    name:'Ж/п',          tone:'var(--c-agr)',  slot:'tenKind', val:null,  test:always },
+  { key:'own',    name:'Собственники', tone:'var(--c-own)',  slot:'tenKind', val:'own', test:isOwner },
+  { key:'ten',    name:'Наниматели',   tone:'var(--c-ten)',  slot:'tenKind', val:'ten', test:isTenant }
+];
+
+/* ═══ 4. Состояние ═══════════════════════════════════════════════════ */
+var rows = [], view = [];
+var state = { okrug:null, status:null, tenure:null, jk:null, rooms:null, res:null, tenKind:null, second:null, house:null, newAddr:null };
+var scrollKeep = {};
+
+function passFilters(r, skipArg){
+  var sk = [].concat(skipArg||[]);
+  function no(k){ return sk.indexOf(k) < 0; }
+  if(state.okrug  && no('okrug')  && norm(okrugName(r)) !== state.okrug) return false;
+  if(state.status && no('status') && norm(statusOf(r)) !== state.status) return false;
+  if(state.tenure && no('tenure') && norm(tenureOf(r)) !== state.tenure) return false;
+  if(state.jk     && no('jk')     && norm(jkOf(r)) !== state.jk) return false;
+  if(state.rooms  && no('rooms')  && roomsOf(r) !== state.rooms) return false;
+  if(state.res    && no('res')     && !(state.res === 'yes' ? isResettled(r) : isRemaining(r))) return false;
+  if(state.tenKind && no('tenKind') && !(state.tenKind === 'own' ? isOwner(r) : isTenant(r))) return false;
+  if(state.second && no('second') && (state.second === 'yes') !== hasSecond(r)) return false;
+  if(state.house  && no('house')   && houseOf(r) !== state.house) return false;
+  if(state.newAddr && no('newAddr') && norm(newAddrOf(r)) !== state.newAddr) return false;
+  return true;
+}
+function buildView(){ view = rows.filter(function(r){ return passFilters(r); }); }
+
+/* ═══ 5. Загрузка ════════════════════════════════════════════════════ */
+/* Разбор CSV без внешних библиотек (кавычки, "" внутри кавычек, переносы строк).
+   Внешний PapaParse убран: cdnjs в рабочей сети не открывается. */
+function parseCSV(t){
+  t = String(t||'').replace(/^\uFEFF/,'');
+  var R = [], r = [], c = '', q = false;
+  for(var i=0;i<t.length;i++){
+    var ch = t[i], nx = t[i+1];
+    if(q){
+      if(ch === '"' && nx === '"'){ c += '"'; i++; }
+      else if(ch === '"') q = false;
+      else c += ch;
+    } else {
+      if(ch === '"') q = true;
+      else if(ch === ','){ r.push(c); c = ''; }
+      else if(ch === '\r'){ /* пропуск */ }
+      else if(ch === '\n'){ r.push(c); R.push(r); r = []; c = ''; }
+      else c += ch;
+    }
+  }
+  if(c !== '' || r.length){ r.push(c); R.push(r); }
+  return R.filter(function(row){ return row.some(function(x){ return String(x).trim() !== ''; }); });
+}
+
+/* Загрузка одного канала. В журнал пишется, что именно вернул канал —
+   это выводится на экран, если данные не получены ни одним способом. */
+var loadLog = [];
+function parseOne(src, ms){
+  if(src.jsonp) return parseJsonp(src, ms);
+  return new Promise(function(resolve){
+    var done = false, ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    function fin(data, msg){ if(done) return; done = true; clearTimeout(timer); loadLog.push({ name:src.name, msg:msg }); resolve(data); }
+    var timer = setTimeout(function(){ if(ctl) ctl.abort(); fin(null, 'нет ответа за ' + Math.round(ms/1000) + ' с'); }, ms);
+    fetch(src.url, { cache:'no-store', signal: ctl ? ctl.signal : undefined })
+      .then(function(resp){
+        if(!resp.ok){ fin(null, 'ошибка HTTP ' + resp.status); return; }
+        return resp.text().then(function(text){
+          var head = text.replace(/^\uFEFF/,'').slice(0,200).toLowerCase();
+          if(head.indexOf('<!doctype')>=0 || head.indexOf('<html')>=0){
+            fin(null, 'вместо таблицы пришла веб-страница (обычно — страница входа Google: доступ к таблице закрыт)'); return;
+          }
+          var data = parseCSV(text);
+          if(!data.length){ fin(null, 'пустой ответ'); return; }
+          var x = extract(data);
+          fin(data, x ? ('получено строк: ' + x.rows.length) : 'в ответе нет заголовков «Округ» и «Адрес МКД»');
+        });
+      })
+      .catch(function(){ fin(null, 'запрос заблокирован (сеть или CORS)'); });
+  });
+}
+
+/* Канал без CORS: Google Visualization отдаёт данные как скрипт (JSONP).
+   Работает, когда таблица открыта по ссылке или опубликована в интернете.
+   Ячейки берутся в отображаемом виде (f), иначе — значение (v). */
+function parseJsonp(src, ms){
+  return new Promise(function(resolve){
+    var done = false, cb = '__ginGviz' + Date.now() + Math.floor(Math.random()*1000);
+    var el = document.createElement('script');
+    function fin(data, msg){
+      if(done) return; done = true; clearTimeout(timer);
+      loadLog.push({ name:src.name, msg:msg });
+      try{ delete window[cb]; }catch(e){ window[cb] = undefined; }
+      if(el.parentNode) el.parentNode.removeChild(el);
+      resolve(data);
+    }
+    var timer = setTimeout(function(){ fin(null, 'нет ответа за ' + Math.round(ms/1000) + ' с'); }, ms);
+    window[cb] = function(resp){
+      if(!resp || resp.status === 'error' || !resp.table){
+        var e = resp && resp.errors && resp.errors[0];
+        fin(null, 'Google ответил ошибкой' + (e ? ': ' + (e.detailed_message || e.message || e.reason) : ''));
+        return;
+      }
+      var t = resp.table, cols = t.cols || [];
+      var data = [cols.map(function(c){ return c && c.label ? c.label : ''; })];
+      (t.rows || []).forEach(function(r){
+        data.push(cols.map(function(c, i){
+          var x = r.c && r.c[i];
+          if(!x) return '';
+          if(x.f != null) return String(x.f);
+          return x.v == null ? '' : String(x.v);
+        }));
+      });
+      var x = extract(data);
+      fin(data, x ? ('получено строк: ' + x.rows.length) : 'в ответе нет заголовков «Округ» и «Адрес»');
+    };
+    el.onerror = function(){ fin(null, 'скрипт Google не загрузился (сеть)'); };
+    el.src = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?gid=' + GID +
+      '&headers=1&tqx=out:json;responseHandler:' + cb + '&_=' + Date.now();
+    document.head.appendChild(el);
+  });
+}
+
+/* Строка заголовков и строки с данными. null — в ответе нет заголовков. */
+function extract(data){
+  for(var i=0;i<Math.min(20,data.length);i++){
+    var c = detectCols(data[i]);
+    if(c.okrug >= 0 && c.addr >= 0){
+      var out = [];
+      for(var j=i+1;j<data.length;j++){
+        var r = data[j];
+        if(!r) continue;
+        var ok = clean(r[c.okrug]), ad = clean(r[c.addr]);
+        if(!ok && !ad) continue;
+        if(norm(ok).indexOf('итог')===0 || norm(ok).indexOf('всего')===0) continue;
+        out.push(r);
+      }
+      return { cols:c, rows:out };
+    }
+  }
+  return null;
+}
+
+var loadGen = 0;
+
+function load(){
+  var gen = ++loadGen;
+  skeleton();
+  document.getElementById('notice').innerHTML = '';
+
+  var src = sources(), got = null;
+  loadLog = [];
+
+  function apply(data){
+    if(gen !== loadGen || !data) return;
+    var x = extract(data);
+    if(x && (!got || x.rows.length > got.rows.length)) got = x;
+  }
+  function stage(list){
+    return Promise.all(list.map(function(u){ return parseOne(u, 25000).then(apply); }));
+  }
+
+  stage(src.direct).then(function(){
+    if(gen !== loadGen) return;
+    if(got) return;
+    return stage(src.proxy);
+  }).then(function(){
+    if(gen !== loadGen) return;
+    if(!got){ failure(); return; }
+    COL = got.cols; rows = got.rows;
+    if(!rows.length){ emptySheet(); return; }
+    render();
+  });
+}
+
+function skeleton(){
+  function cells(n){
+    var h = '';
+    for(var i=0;i<n;i++){
+      h += '<div class="tile" style="--tone:var(--track);opacity:.45">' +
+        '<div class="tile-head"><div class="tile-name">—</div></div>' +
+        '<div class="tile-figs"><span class="fig num">—</span></div>' +
+        '<div class="tile-area"><span>Площадь</span><span class="num">—</span></div></div>';
+    }
+    return h;
+  }
+  document.getElementById('row-okr').innerHTML = '';
+  document.getElementById('row-sum').innerHTML = cells(3);
+  document.getElementById('row-sec').innerHTML = cells(2);
+  document.getElementById('row-str').innerHTML = cells(4);
+  document.getElementById('row-addr').innerHTML = '';
+}
+
+function clearMain(){
+  ['row-okr','row-sum','row-sec','row-str','row-addr'].forEach(function(id){ document.getElementById(id).innerHTML = ''; });
+}
+
+function failure(){
+  clearMain();
+  var log = loadLog.map(function(l){ return '<li><b>'+esc(l.name)+'</b>: '+esc(l.msg)+'</li>'; }).join('');
+  document.getElementById('notice').innerHTML =
+    '<div class="notice"><h2>Таблица не отдала данные</h2>' +
+    'Что ответил каждый канал:<ul style="margin:8px 0 14px 18px">' + log + '</ul>' +
+    'Что проверить:' +
+    '<ol><li>У таблицы включён доступ «Все, у кого есть ссылка» — «Читатель», либо вкладка опубликована как CSV и ссылка вставлена в PUB_CSV.</li>' +
+    '<li>Вкладка «Для Дашборда/ГИН» существует и её gid — ' + GID + '.</li>' +
+    '<li>Страница открыта по http(s). При открытии файла с диска (адрес file://) браузер блокирует запрос к Google.</li></ol>' +
+    '<button class="ctrl" type="button" onclick="location.reload()">Загрузить заново</button></div>';
+}
+
+function emptySheet(){
+  clearMain();
+  document.getElementById('notice').innerHTML =
+    '<div class="notice"><h2>На вкладке нет строк с данными</h2>' +
+    'Заголовки вкладки «Для Дашборда/ГИН» найдены, но под ними пусто. Заполните столбцы «Округ» и «Адрес МКД» и нажмите «Обновить».</div>';
+}
+
+/* ═══ 6. Отрисовка ═══════════════════════════════════════════════════ */
+function ring(pct, tone){
+  var r = 22, c = 2 * Math.PI * r, on = c * Math.max(0, Math.min(1, pct));
+  return '<svg class="ring" width="56" height="56" viewBox="0 0 56 56" aria-hidden="true">' +
+    '<circle cx="28" cy="28" r="' + r + '" fill="none" stroke="var(--track)" stroke-width="6"/>' +
+    '<circle cx="28" cy="28" r="' + r + '" fill="none" stroke="' + tone + '" stroke-width="6" stroke-linecap="round"' +
+    ' stroke-dasharray="' + on.toFixed(1) + ' ' + c.toFixed(1) + '" transform="rotate(-90 28 28)"/>' +
+    '<text x="28" y="32" text-anchor="middle">' + Math.round(pct * 100) + '%</text></svg>';
+}
+
+function snapScroll(){
+  var boxes = document.querySelectorAll('.scroll');
+  for(var i=0;i<boxes.length;i++) if(boxes[i].id) scrollKeep[boxes[i].id] = boxes[i].scrollTop;
+}
+function restoreScroll(){
+  var boxes = document.querySelectorAll('.scroll');
+  for(var i=0;i<boxes.length;i++) if(boxes[i].id && scrollKeep[boxes[i].id]) boxes[i].scrollTop = scrollKeep[boxes[i].id];
+}
+
+function render(){
+  if(tab === 'map') drawMap();
+  snapScroll();
+  buildView();
+  renderTiles();
+  renderAddr();
+  restoreScroll();
+}
+
+/* Ключ округа для фильтра: самое частое написание в таблице. */
+function okrId(stem){
+  var cnt = {}, best = null;
+  rows.forEach(function(r){ var id = norm(okrugName(r)); if(id.indexOf(stem) >= 0) cnt[id] = (cnt[id]||0) + 1; });
+  for(var id in cnt) if(!best || cnt[id] > cnt[best]) best = id;
+  return best;
+}
+
+function renderTiles(){
+  /* Строка 1 — округа: только название */
+  document.getElementById('row-okr').innerHTML = OKRS.map(function(o){
+    var id = okrId(o.stem), area = 0;
+    rows.forEach(function(r){
+      if(norm(okrugName(r)).indexOf(o.stem) >= 0 && passFilters(r, 'okrug')) area += areaOf(r);
+    });
+    return '<button class="okr-card" type="button" data-okrcard="'+o.stem+'" aria-pressed="'+(!!id && state.okrug===id)+'" style="--tone:var(--c-cert)">' +
+      '<span class="okr-name">'+o.title+'</span>' +
+      '<div class="tile-area"><span>Площадь</span><span class="num">'+fmtArea.format(area)+' м²</span></div></button>';
+  }).join('');
+
+  /* Плитки строки считаются по выборке без фильтра своей же строки:
+     при выборе «Расселено» плитки «Всего» и «Остаток» не обнуляются.
+     Кольцо — доля от «Всего» / «Ж/п» (от «Дома» для домов). */
+  function tile(m){
+    if(m.needCol && !(COL && COL[m.needCol] >= 0)){
+      return '<div class="tile" style="--tone:'+m.tone+'">' +
+        '<div class="tile-head"><div class="tile-name">'+m.name+'</div></div>' +
+        '<div class="tile-figs"><span class="fig num">—</span></div>' +
+        '<div class="tile-miss">В таблице нет столбца «Второе жильё»</div></div>';
+    }
+    var baseRows = rows.filter(function(r){ return passFilters(r, m.slot); });
+    var cnt = 0, area = 0, houses = {}, dh = {};
+    for(var i=0;i<baseRows.length;i++){
+      var r = baseRows[i];
+      if(m.houses) dh[houseOf(r)] = 1;
+      if(!m.test(r)) continue;
+      cnt++; area += areaOf(r); houses[houseOf(r)] = 1;
+    }
+    var fig = cnt, denom = baseRows.length, unit = 'помещений';
+    if(m.houses){ fig = Object.keys(houses).length; denom = Object.keys(dh).length; unit = 'домов'; }
+    var share = denom ? fig/denom : 0;
+    var on = m.val ? state[m.slot] === m.val : !state[m.slot];
+    return '<button class="tile" type="button" data-tile="'+m.key+'" aria-pressed="'+(on?'true':'false')+'" style="--tone:'+m.tone+'">' +
+      '<div class="tile-head"><div class="tile-name">'+m.name+'</div>' + ring(share, m.tone) + '</div>' +
+      '<div class="tile-figs"><span class="fig num">'+fmtInt.format(fig)+'</span><span class="fig-unit">'+unit+'</span></div>' +
+      '<div class="tile-area"><span>Площадь</span><span class="num">'+fmtArea.format(area)+' м²</span></div></button>';
+  }
+
+  /* Всего/расселено/остаток; второе жильё; дома/ж/п/собственники/наниматели */
+  document.getElementById('row-sum').innerHTML = SUM.map(tile).join('');
+  document.getElementById('row-sec').innerHTML = SEC.map(tile).join('');
+  document.getElementById('row-str').innerHTML = STR.map(tile).join('');
+
+  var cards = document.querySelectorAll('[data-okrcard]');
+  for(var c=0;c<cards.length;c++){
+    cards[c].addEventListener('click', function(){
+      var id = okrId(this.getAttribute('data-okrcard'));
+      if(!id) return;
+      state.okrug = (state.okrug === id) ? null : id;
+      render();
+    });
+  }
+  var tiles = document.querySelectorAll('[data-tile]');
+  for(var t=0;t<tiles.length;t++){
+    tiles[t].addEventListener('click', function(){
+      var k = this.getAttribute('data-tile'), m = null;
+      SUM.concat(SEC, STR).forEach(function(x){ if(x.key === k) m = x; });
+      if(!m) return;
+      state[m.slot] = (!m.val || state[m.slot] === m.val) ? null : m.val;
+      render();
+    });
+  }
+}
+
+/* ═══ 7. Адреса ════════════════════════════════════════════════════
+   Адрес аварийный — «Адрес МКД» (столбец D), группировка по дому.
+   Адрес предоставляемый — столбец L.
+   Площадь — столбец G. Клик по строке фильтрует дашборд.            */
+function addrPanel(key, title, tone, list){
+  var max = list.length ? list[0].cnt : 1;
+  var rowsHtml = list.length ? list.map(function(o,i){
+      var w = max > 0 ? Math.max(2, Math.round(o.cnt/max*100)) : 0;
+      return '<button class="item'+(o.red ? ' do30' : '')+'" type="button"'+(o.red ? ' title="В списке «До 30%»"' : '')+' data-addr="'+key+'" data-id="'+esc(o.id)+'" aria-pressed="'+(state[key]===o.id)+'">' +
+        '<span class="item-rank num">'+(i+1)+'</span>' +
+        '<span class="item-name wrap">'+(o.sub ? '<span class="addr-okrug">'+esc(o.sub)+'</span>' : '')+esc(o.name)+'</span>' +
+        '<span class="bar"><i style="width:'+w+'%"></i></span>' +
+        (key === 'house'
+          ? '<span class="item-cnt num cnt3" title="Всего ж/п: '+o.cnt+' · расселено: '+o.res+' · подлежит расселению: '+o.rest+'">'+
+              fmtInt.format(o.cnt)+'<span class="sl">/</span><span class="c-res">'+fmtInt.format(o.res)+'</span><span class="sl">/</span><span class="c-rest">'+fmtInt.format(o.rest)+'</span></span>'
+          : '<span class="item-cnt num">'+fmtInt.format(o.cnt)+'</span>') +
+        '<span class="item-area num">'+fmtArea.format(o.area)+' м²</span></button>';
+    }).join('') : '<div class="empty">Нет строк по текущему фильтру.</div>';
+  return '<section class="panel" style="--tone:'+tone+'">' +
+    '<div class="panel-head"><div class="panel-title"><span class="swatch"></span>'+title+'</div>' +
+    '<span class="panel-cnt">'+fmtInt.format(list.length)+'</span>' +
+    (key === 'house' ? '<span class="cnt-legend">ж/п: всего / <b style="color:var(--c-agr)">расселено</b> / <b style="color:var(--c-buy)">остаток</b></span>' : '') +
+    '</div>' +
+    '<div class="scroll" id="scroll-'+key+'">'+rowsHtml+'</div></section>';
+}
+
+function collect(key, idFn, nameFn, subFn){
+  var agg = {}, order = [];
+  rows.forEach(function(r){
+    if(!passFilters(r, key)) return;
+    var name = nameFn(r); if(!name) return;
+    var id = idFn(r);
+    if(!agg[id]){
+      agg[id] = { id:id, name:name, sub:subFn ? subFn(r) : '', cnt:0, area:0, res:0, rest:0,
+                  red: key === 'house' && isDo30({ np:cell(r,'np'), addr:cell(r,'addr') }) };
+      order.push(id);
+    }
+    agg[id].cnt++; agg[id].area += areaOf(r);
+    if(isResettled(r)) agg[id].res++;
+    if(isRemaining(r)) agg[id].rest++;
+  });
+  return order.map(function(id){ return agg[id]; })
+    .sort(function(a,b){ return (b.cnt-a.cnt) || (b.area-a.area) || a.name.localeCompare(b.name,'ru'); });
+}
+
+/* Выбран дом в «Адрес аварийный» → в «Адрес предоставляемый» ЖК его округа
+   с расстоянием по прямой от дома (координаты дома — встроенные / из кэша). */
+function distM(a, b){
+  var R = 6371000, t = Math.PI/180, dLa = (b[0]-a[0])*t, dLo = (b[1]-a[1])*t;
+  var x = Math.sin(dLa/2)*Math.sin(dLa/2) + Math.cos(a[0]*t)*Math.cos(b[0]*t)*Math.sin(dLo/2)*Math.sin(dLo/2);
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+function jkPanel(houseId){
+  var r = null;
+  for(var i=0;i<rows.length;i++) if(houseOf(rows[i]) === houseId){ r = rows[i]; break; }
+  var head = function(cnt, from){
+    return '<section class="panel" style="--tone:var(--c-agr)">' +
+      '<div class="panel-head"><div class="panel-title"><span class="swatch"></span>Адрес предоставляемый</div>' +
+      '<span class="panel-cnt">'+cnt+'</span><span class="jk-from">'+from+'</span></div>';
+  };
+  if(!r) return head(0, '') + '<div class="scroll"><div class="empty">Дом не найден.</div></div></section>';
+  var h = { okrug:okrugName(r), np:cell(r,'np'), addr:cell(r,'addr') };
+  var geo = findGeo(h, geoCache()), from = geo && geo.c;
+  var key = okrKey(h.okrug);
+  var list = JK_DATA.filter(function(j){ return okrKey(j[0]) === key; }).map(function(j){
+    return { j:j, d: from ? distM(from, [j[5], j[6]]) : null };
+  });
+  list.sort(function(a,b){ return (a.d==null ? 1e12 : a.d) - (b.d==null ? 1e12 : b.d) || a.j[1].localeCompare(b.j[1],'ru'); });
+  var fromTxt = 'ЖК округа <b>'+esc(h.okrug)+'</b> · расстояние по прямой от <b>'+esc(fmtAddr(h.addr, h.okrug))+'</b>' +
+    (from ? '' : '<br><span style="color:var(--c-buy)">координаты дома не найдены — расстояние появится после открытия вкладки «Карта»</span>');
+  var max = 0; list.forEach(function(o){ if(o.d != null && o.d > max) max = o.d; });
+  var body = list.length ? list.map(function(o, i){
+      var w = (o.d != null && max > 0) ? Math.max(2, Math.round(o.d/max*100)) : 0;
+      return '<div class="item jkd">' +
+        '<span class="item-rank num">'+(i+1)+'</span>' +
+        '<span class="item-name wrap">'+(o.j[4] ? '<span class="addr-okrug">'+esc(o.j[4])+'</span>' : '')+'ЖК «'+esc(o.j[1])+'»</span>' +
+        '<span class="bar"><i style="width:'+w+'%"></i></span>' +
+        '<span class="item-cnt num">'+(o.d != null ? fmtKm(o.d) : '—')+'</span>' +
+        '<span class="item-area num" title="Остаток площади в ЖК">'+fmtArea.format(o.j[7])+' м²</span></div>';
+    }).join('') : '<div class="empty">В округе нет ЖК из таблицы новостроек.</div>';
+  return head(list.length, fromTxt) + '<div class="scroll" id="scroll-newAddr">'+body+'</div></section>';
+}
+
+function renderAddr(){
+  var from = collect('house', houseOf, function(r){ return cell(r,'addr') ? fmtAddr(cell(r,'addr'), okrugName(r)) : ''; },
+    function(r){ var np = cell(r,'np'); return okrugName(r) + (np ? ' · ' + np : ''); });
+  var to = collect('newAddr', function(r){ return norm(newAddrOf(r)); }, newAddrOf, null);
+  document.getElementById('row-addr').innerHTML =
+    addrPanel('house', 'Адрес аварийный', 'var(--c-buy)', from) +
+    (state.house ? jkPanel(state.house) : addrPanel('newAddr', 'Адрес предоставляемый', 'var(--c-agr)', to));
+
+  var items = document.querySelectorAll('[data-addr]');
+  for(var i=0;i<items.length;i++){
+    items[i].addEventListener('click', function(){
+      var k = this.getAttribute('data-addr'), id = this.getAttribute('data-id');
+      state[k] = (state[k] === id) ? null : id;
+      render();
+    });
+  }
+}
+
+document.getElementById('reset').addEventListener('click', function(){
+  state = { okrug:null, status:null, tenure:null, jk:null, rooms:null, res:null, tenKind:null, second:null, house:null, newAddr:null };
+  if(rows.length) render();
+});
+
+document.getElementById('reload').addEventListener('click', function(){ load(); });
+
+/* Кнопка «наверх». */
+var toTop = document.getElementById('to-top');
+window.addEventListener('scroll', function(){
+  toTop.hidden = window.scrollY < 300;
+});
+toTop.addEventListener('click', function(){
+  window.scrollTo({ top:0, behavior:'smooth' });
+});
+
+/* ═══ 8. Карта ═════════════════════════════════════════════════════
+   Дома — уникальные адреса МКД по текущим фильтрам.
+   Координаты — геокодер Яндекса; кэш в браузере на 30 дней
+   (п. 5.1.5 условий Яндекса). Суточный лимит считается ДО запроса:
+   не больше GEO_LIMIT запросов в сутки.                               */
+var tab = 'main';
+var mainLayer = null;
+var mapFilter = null;                 // null — всё, 'red' — дома до 30% + ЖК, 'other' — остальные дома + ЖК, 'jk' — только новостройки
+var ymap = null, mapGen = 0;
+var GEO_KEY = 'gin-geo-v1', GEO_DAY = 'gin-geo-day', GEO_TTL = 30*24*3600*1000, GEO_LIMIT = 800;
+var MO_BOUNDS = [[54.2,35.1],[57.0,40.3]];
+/* Значок «дом» */
+var HOUSE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">' +
+  '<path d="M15 3 L27 13.5 L24 13.5 L24 26 L6 26 L6 13.5 L3 13.5 Z" fill="#a96a15" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>' +
+  '<rect x="12.5" y="18" width="5" height="8" fill="#fff"/></svg>';
+var HOUSE_ICON = { iconLayout:'default#image',
+  iconImageHref:'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(HOUSE_SVG),
+  iconImageSize:[30,30], iconImageOffset:[-15,-26], hideIconOnBalloonOpen:false, balloonOffset:[0,-28] };
+var HOUSE_ICON_RED = { iconLayout:'default#image',
+  iconImageHref:'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(HOUSE_SVG.replace('#a96a15','#c0392b')),
+  iconImageSize:[30,30], iconImageOffset:[-15,-26], zIndex:700, hideIconOnBalloonOpen:false, balloonOffset:[0,-28] };
+
+/* ═══ Новостройки (файл «Таблица остатки август 2026 адреса.xlsx», Лист1).
+   [округ, ЖК, ГК, застройщик, адрес, широта, долгота, остаток м²].
+   Две строки Одинцовского без координат в файле («-» и «5-ти этажный жилой дом…») не выводятся. */
+var JK_DATA = [["Домодедово", "Домодедово Парк", "Град", "ООО \"СЗ \"Град Домодедово\"", "Московская обл., Домодедово, ул. Творчества", 55.473561, 37.702634, 7207.0], ["Домодедово", "Космос", "Вне ГК", "ООО \"СЗ Скала\"", "ЖК Космос, микрорайон Авиационный, Домодедово", 55.410545, 37.833743, 22472.0], ["Домодедово", "Оптима", "Премьера", "ООО \"СЗ Ледовская 8-9\", ООО СЗ ЛЕДОВСКАЯ", "ЖК Оптима, микрорайон Востряково, Домодедово", 55.368646, 37.793103, 9538.19], ["Домодедово", "Прибрежный Парк", "Самолет", "ООО \"СЗ \"Прибрежный Парк\"", "Московская обл., округ Домодедово, с. Ям, ул. Новая", 55.496572, 37.738569, 4664.39], ["Домодедово", "Текстильщиков, 33", "Вне ГК", "ООО \"СПЕЦСТРОЙПРОЕКТ\"", "Московская обл., Домодедово, мкр. Западный, ул. Текстильщиков", 55.435351, 37.736416, 6396.0], ["Красногорск", "Ангелово-Резиденц", "Вне ГК", "АО \"СЗ \"РОСИНКА-СЕРВИС\"", "Московская обл., округ Красногорск, с. Ангелово, жилой комплекс Ангелово-Резиденц", 55.857433, 37.325631, 16732.5], ["Красногорск", "Замитино", "Вне ГК", "ООО \"Специализированный застройщик \"Замитино\"", "Луговая ул., 7, п. г. т. Сабурово", 55.885194, 37.259367, 1039.6], ["Красногорск", "Ильинойс", "Гранель", "ООО \"СЗ \"Оферта\"", "Московская обл., Красногорск, Ильинский тупик", 55.808778, 37.318558, 251.0], ["Красногорск", "Ильинские луга", "ПИК", "ООО \"СЗ \"ГРАДОЛИМП\"", "Московская обл., округ Красногорск, пос. Ильинское-Усово, ул. Заповедная / ул. Архангельская", 55.773786, 37.23329, 866.9000000000001], ["Красногорск", "Лесная Отрада", "Отрада", "ООО СЗ \"Строй-Ресурс\"", "Московская обл., округ Красногорск, д. Аристово, ул. Светлогорская", 55.876843, 37.313858, 626.7], ["Красногорск", "Миниполис 8 кленов", "Сити-XXI век", "ООО \"СЗ \"8Кленов\"", "Московская обл., Красногорск, мкр. Опалиха, ул. Новая Московская", 55.834523, 37.24839, 3788.1], ["Красногорск", "Никольский квартал", "Отрада", "ООО СЗ \"ОТРАДА ВИЛЛАДЖ\"", "Соловьиная улица, 8, Красногорск, Московская область", 55.846718, 37.241917, 886.0], ["Красногорск", "Отрада на реке", "Отрада", "ООО \"Отрада Девелопмент\"", "ЖК Отрада на Реке, городской округ Красногорск, Московская область", 55.86302, 37.306252, 4057.0], ["Красногорск", "Путилково", "Самолет", "ООО \"СЗ \"САМОЛЕТ-ПУТИЛКОВО\"", "Московская обл., Красногорский район, мкр. Путилково, ул. Сходненская", 55.873637, 37.393689, 637.8], ["Красногорск", "Рига Хиллс", "Вне ГК", "ООО \"СЗ \"ЖК ЯРКИЙ. РИГА\"", "Московская область, городской округ Красногорск, ЖК Рига Хиллс, к3", 55.772584, 37.213814, 17000.0], ["Красногорск", "Тетрис", "Садовое Кольцо", "ООО «Садовое кольцо МПС» (Т 2.2)", "ЖК Тетрис, микрорайон Павшино, Красногорск, Московская область", 55.817158, 37.343353, 359.05], ["Одинцовский", "Жаворонки Клаб", "Kaskad Family", "ООО \"СЗ Магэл Строй\"", "ЖК Жаворонки Клаб, деревня Митькино, Одинцовский городской округ, Московская область", 55.609828, 37.109207, 1753.0], ["Одинцовский", "Заречный Квартал", "Ikon development", "ООО \"СЗ \"Земельные активы\"", "Московская обл., округ Одинцовский, пос. Заречье, ул. Торговая", 55.681931, 37.410687, 5475.7], ["Одинцовский", "Заречь Парк", "Самолет", "ООО «СЗ Самолет-Заречье»", "Московская обл., Одинцовский округ, пос. Заречье, ул. Заречная", 55.686636, 37.407969, 64.6], ["Одинцовский", "Немчиновка-Резиденц", "Вне ГК", "ООО \"СтройГарант\"", "Московская обл., Одинцовский район, с. Немчиновка, ул. Ольховая", 55.721531, 37.347128, 4007.2999999999997], ["Одинцовский", "Одинбург", "AFI Development", "ООО \"СЗ \"РАПО\"", "Московская обл., Одинцово, ул. Северная", 55.681381, 37.245755, 2429.0], ["Одинцовский", "Одинград", "Вектор", "ООО \"СЗ \"ПРОСТОРНАЯ ДОЛИНА\"", "жилой комплекс Одинград квартал Семейный, микрорайон Клубничное Поле, Одинцово", 55.678209, 37.235618, 2491.1], ["Одинцовский", "Равновесие", "Кортрос", "ООО СЗ \"Перхушково-Девелопмент\"", "Московская обл., Одинцовский округ, с. Перхушково, ул. Окружная", 55.652208, 37.120696, 7177.9], ["Одинцовский", "Рублевский Квартал", "Самолет", "ООО «СЗ «Самолет-Лайково»", "Московская обл., Одинцовский округ, с. Лайково, ул. Строителей", 55.701243, 37.207259, 13504.77], ["Одинцовский", "Союзный", "Вектор", "АО\"СЗ \"Вектор Недвижимости", "Московская область, Одинцово, улица Маковского", 55.660133, 37.286425, 300.0], ["Химки", "1-й Шереметьевский", "ФСК", "АО \" СЗ ГОЛДФИШ\"", "ЖК 1-й Шереметьевский, микрорайон Подрезково, Химки, Московская область", 55.943921, 37.340586, 359.29999999999995], ["Химки", "Берег", "ДЕПО", "ООО \"СЗ \"МонтажСтрой\"", "Московская обл., Химки, ул. Береговая", 55.950397, 37.475768, 141.7], ["Химки", "Квартал Ивакино", "Самолет", "ООО \"СЗ \"Самолет-Олимп\"", "Московская обл., Химки, мкр. Клязьма-Старбеево, квартал Международный, ул. Олимпийская", 55.952099, 37.469846, 752.7], ["Химки", "Мишино", "Вне ГК", "ООО \"СЗ Ю-Инвест\"", "Московская обл., Химки, мкр. Клязьма-Старбеево, квартал Мишино, ул. Летняя", 55.922119, 37.445647, 5080.1], ["Химки", "Новый Зеленоград", "Ikon development", "ООО \"СЗ Кутузовское-1\"", "ЖК Новый Зеленоград, микрорайон Кутузовский, деревня Рузино, городской округ Химки, Московская область", 55.95, 37.181243, 1876.1], ["Химки", "Пятницкие Луга", "Самолет", "ООО «СЗ «САМОЛЕТ-ЮРЛОВО»", "Московская обл., округ Химки, д. Юрлово, ул. Пятницкая", 55.895392, 37.25063, 798.3], ["Химки", "Химки, квартал «Свистуха»", "Сити-XXI век", "ООО \"СЗ \"РАФИНАД-СИТИ\"", "квартал Свистуха, с1к1, микрорайон Клязьма-Старбеево, Химки, Московская область", 55.956789, 37.448806, 49.7]];
+var JK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="34" viewBox="0 0 30 34">' +
+  '<path d="M6 32 V8 L15 3 L24 8 V32 Z" fill="#1e8a4c" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>' +
+  '<g fill="#fff"><rect x="9.5" y="10" width="3.5" height="3"/><rect x="17" y="10" width="3.5" height="3"/>' +
+  '<rect x="9.5" y="15.5" width="3.5" height="3"/><rect x="17" y="15.5" width="3.5" height="3"/>' +
+  '<rect x="9.5" y="21" width="3.5" height="3"/><rect x="17" y="21" width="3.5" height="3"/>' +
+  '<rect x="13" y="26.5" width="4" height="5.5"/></g></svg>';
+var JK_ICON = { iconLayout:'default#image',
+  iconImageHref:'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(JK_SVG),
+  iconImageSize:[30,34], iconImageOffset:[-15,-32], zIndex:650, hideIconOnBalloonOpen:false, balloonOffset:[0,-34] };
+/* Округ: сравнение по первым 7 буквам («красног» ≠ «краснoз»). */
+function okrKey(v){ return norm(v).replace(/^(го|г\.о\.|городской округ)\s+/,'').slice(0,7); }
+function jkBalloon(j){
+  return '<div style="font-family:IBM Plex Sans,sans-serif;font-size:13px;line-height:1.5;min-width:220px">' +
+    '<b style="color:#1e8a4c">ЖК «'+esc(j[1])+'»</b><br><span style="color:#767d87">'+esc(j[0])+'</span><br>' +
+    (j[4] ? esc(j[4])+'<br>' : '') +
+    (j[2] ? 'ГК: <b>'+esc(j[2])+'</b><br>' : '') +
+    (j[3] ? 'Застройщик: '+esc(j[3])+'<br>' : '') +
+    'Остаток: <b>'+fmtArea.format(j[7])+' м²</b></div>';
+}
+/* Слой значков с кружками «только при наложении».
+   На каждом масштабе считаются экранные координаты значков. Если значки
+   накрывают друг друга почти целиком (центры ближе OVERLAP_PX пикселей
+   по обеим осям) и разглядеть их нельзя — вместо них кружок с числом.
+   Все остальные значки остаются как есть. Клик по кружку приближает карту
+   к этим домам; если приближать дальше некуда — открывается их список.
+   Цвет кружка: красный — внутри есть дом «до 30%», коричневый — только дома,
+   зелёный — только ЖК, чёрный — дома и ЖК вместе. */
+var OVERLAP_PX = 0;          // кружки отключены: каждый дом и ЖК — отдельный значок
+var CLU_COLORS = { red:'#c0392b', house:'#a96a15', jk:'#1e8a4c', mix:'#0f1317' };
+function OverlapLayer(map){
+  var self = this;
+  this.map = map; this.items = []; this.owner = [];
+  this.col = new ymaps.GeoObjectCollection();
+  map.geoObjects.add(this.col);
+  this.Layout = ymaps.templateLayoutFactory.createClass('<div class="map-clu" style="background:$[properties.color]">$[properties.n]</div>');
+  this.onBounds = function(e){ if(e.get('newZoom') !== e.get('oldZoom')) self.render(); };
+  map.events.add('boundschange', this.onBounds);
+  this.timer = null;
+}
+OverlapLayer.prototype.add = function(pm){ this.items.push(pm); this.schedule(); };
+OverlapLayer.prototype.addAll = function(list){ var s = this; list.forEach(function(p){ s.items.push(p); }); this.schedule(); };
+OverlapLayer.prototype.removeAll = function(){ this.items = []; this.schedule(); };
+OverlapLayer.prototype.schedule = function(){ var s = this; clearTimeout(this.timer); this.timer = setTimeout(function(){ s.render(); }, 30); };
+OverlapLayer.prototype.destroy = function(){
+  clearTimeout(this.timer);
+  this.map.events.remove('boundschange', this.onBounds);
+  try{ this.map.geoObjects.remove(this.col); }catch(e){}
+};
+OverlapLayer.prototype.getBounds = function(filter){
+  var pts = this.items.filter(function(p){ return !filter || filter(p); }).map(function(p){ return p.geometry.getCoordinates(); });
+  return pts.length ? ymaps.util.bounds.fromPoints(pts) : null;
+};
+OverlapLayer.prototype.clusterOf = function(pm){ var i = this.items.indexOf(pm); return i >= 0 ? this.owner[i] : null; };
+OverlapLayer.prototype.render = function(){
+  var map = this.map, items = this.items, n = items.length, self = this;
+  this.col.removeAll(); this.owner = [];
+  if(!n) return;
+  var zoom = map.getZoom(), proj = map.options.get('projection');
+  var px = items.map(function(p){ return proj.toGlobalPixels(p.geometry.getCoordinates(), zoom); });
+  /* объединение наложившихся значков (union-find) */
+  var par = []; for(var i=0;i<n;i++) par[i] = i;
+  function f(x){ while(par[x] !== x){ par[x] = par[par[x]]; x = par[x]; } return x; }
+  for(var a=0;a<n;a++) for(var b=a+1;b<n;b++){
+    if(Math.abs(px[a][0]-px[b][0]) < OVERLAP_PX && Math.abs(px[a][1]-px[b][1]) < OVERLAP_PX){ var ra = f(a), rb = f(b); if(ra !== rb) par[ra] = rb; }
+  }
+  var groups = {};
+  for(var k=0;k<n;k++){ var r = f(k); (groups[r] = groups[r] || []).push(k); }
+  Object.keys(groups).forEach(function(r){
+    var g = groups[r];
+    if(g.length === 1){ self.col.add(items[g[0]]); self.owner[g[0]] = null; return; }
+    var red = 0, house = 0, jk = 0, lat = 0, lon = 0, names = [];
+    g.forEach(function(i){
+      var p = items[i], c = p.geometry.getCoordinates(), grp = p.properties.get('grp');
+      lat += c[0]; lon += c[1];
+      if(grp === 'red') red++; else if(grp === 'jk') jk++; else house++;
+      names.push('<li>' + esc(String(p.properties.get('hintContent') || '')) + '</li>');
+    });
+    var color = red ? CLU_COLORS.red : (jk && !house ? CLU_COLORS.jk : (jk ? CLU_COLORS.mix : CLU_COLORS.house));
+    var parts = [];
+    if(red) parts.push(red + ' до 30%');
+    if(house) parts.push(house + ' ' + (house === 1 ? 'дом' : 'домов'));
+    if(jk) parts.push(jk + ' ЖК');
+    var cp = new ymaps.Placemark([lat/g.length, lon/g.length], {
+        n:g.length, color:color, hintContent:parts.join(' · ') + ' — нажмите, чтобы приблизить',
+        balloonContent:'<div style="font-family:IBM Plex Sans,sans-serif;font-size:13px;line-height:1.5"><b>'+parts.join(' · ')+'</b><ul style="margin:6px 0 0 18px">'+names.join('')+'</ul></div>'
+      }, { iconLayout:self.Layout, iconShape:{ type:'Circle', coordinates:[0,0], radius:18 }, zIndex:900, openBalloonOnClick:false });
+    cp.events.add('click', function(){
+      var pts = g.map(function(i){ return items[i].geometry.getCoordinates(); });
+      var maxZ = 19;
+      try{ maxZ = map.zoomRange.getCurrent()[1]; }catch(e){}
+      if(map.getZoom() >= maxZ - 1) cp.balloon.open();
+      else map.setBounds(ymaps.util.bounds.fromPoints(pts), { checkZoomRange:true, zoomMargin:90, duration:300 });
+    });
+    self.col.add(cp);
+    g.forEach(function(i){ self.owner[i] = cp; });
+  });
+};
+
+function fmtKm(m){ return m < 1000 ? Math.round(m) + ' м' : String(Math.round(m/100)/10).replace('.',',') + ' км'; }
+
+/* ═══ Пятна будущей застройки: дома выделяются квадратом и синим мерцающим значком.
+   Дом входит в пятно, если населённый пункт содержит place, а адрес заканчивается одним из houses. */
+var SPOTS = [
+  { name:'Большие Вязёмы, ул. Институт', place:'вяземы',   houses:['ул. институт, д. 2', 'ул. институт, д. 6'] },
+  { name:'Голицыно, пер. Банный',        place:'голицыно', houses:['пер. банный, д. 2', 'пер. банный, д. 2а', 'пер. банный, д. 3'] },
+  { name:'Красногорск, ул. Маяковского, д. 1', place:'красногорск', houses:['ул. маяковского, д. 1'] },
+  { name:'Химки, п. санатория «Энергия», д. 8', place:'химки', houses:['п. санатория "энергия", д. 8', 'п. санатория «энергия», д. 8'] },
+  { name:'Домодедово, мкр. Центральный, ул. Корнеева, д. 30', place:'домодедово', houses:['ул. корнеева, д. 30'] },
+  { name:'Домодедово, мкр. Белые Столбы, ул. Кирова, д. 3', place:'домодедово', houses:['ул. кирова, д. 3'] },
+  { name:'Домодедово, мкр. Белые Столбы, ул. 2-я Московская, д. 62', place:'домодедово', houses:['ул. 2-я московская, д. 62'] }
+];
+var spotsOn = false;
+function spotOf(h){
+  var a = norm(h.addr), pl = norm(h.np) + ' ' + a;
+  for(var i=0;i<SPOTS.length;i++){
+    var sp = SPOTS[i];
+    if(pl.indexOf(sp.place) < 0) continue;
+    for(var j=0;j<sp.houses.length;j++){
+      var t = sp.houses[j];
+      if(a === t || a.slice(-(t.length+2)) === ', ' + t) return i;
+    }
+  }
+  return -1;
+}
+var HOUSE_SVG_BLUE = HOUSE_SVG.replace('#a96a15','#1e7bff');
+
+/* ═══ Список «До 30%» (файл «До 30%.xlsx», лист «Лист6», столбец «Адрес»).
+   Дом дашборда совпадает с домом из списка, если совпали улица и номер дома,
+   а населённый пункт дома встречается в адресе из списка.               */
+/* [адрес, подлежит расселению, расселено, розыск собственника, общий итог, остаток (доля)] */
+var DO30_DATA = [["обл. Московская, р-н. Ногинский, г. Ногинск, туп. Картонный, д. 22/1", 3, 17, 0, 20, 0.15], ["обл. Московская, р-н. Ногинский, г. Ногинск, ул. 3 Интернационала, д. 114", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Ногинский, г. Ногинск, ул. 3 Интернационала, д. 147", 3, 13, 0, 16, 0.1875], ["обл. Московская, р-н. Ногинский, г. Ногинск, ул. Рабочая, д. 46", 1, 4, 0, 5, 0.2], ["обл. Московская, р-н. Ногинский, г. Электроугли, пер. 1-ый Троицкий, д. 10А", 7, 17, 0, 24, 0.2917], ["обл. Московская, р-н. Волоколамский, г. Волоколамск, ул. Свободы, д. 16", 6, 16, 0, 22, 0.2727], ["обл. Московская, р-н. Волоколамский, г. Волоколамск, ул. Советская, д. 33", 2, 5, 0, 7, 0.2857], ["обл. Московская, р-н. Волоколамский, с. Теряево, ул. Советская, д. 38", 2, 8, 0, 10, 0.2], ["обл. Московская, г. Балашиха, ул. Калинина, д. 4а", 5, 12, 0, 17, 0.2941], ["обл. Московская, г. Бронницы, ул. Советская, д. 60", 2, 6, 0, 8, 0.25], ["обл. Московская, р-н. Воскресенский, г. Воскресенск, ул. Андреса, д. 7", 1, 13, 0, 14, 0.0714], ["обл. Московская, р-н. Воскресенский, г. Воскресенск, ул. Московская, д. 4, стр. В", 7, 17, 0, 24, 0.2917], ["обл. Московская, р-н. Воскресенский, д. Городище, ул. Мира, д. 11", 1, 4, 0, 5, 0.2], ["обл. Московская, р-н. Воскресенский, д. Щербово, ул. Малага, д. 3", 2, 6, 0, 8, 0.25], ["обл. Московская, р-н. Воскресенский, пгт. им Цюрупы, ул. Октябрьская, д. 32", 1, 7, 0, 8, 0.125], ["обл. Московская, р-н. Воскресенский, с. Барановское, ул. Фабрики Вперед, д. 6", 1, 6, 0, 7, 0.1429], ["обл. Московская, р-н. Воскресенский, пгт. Хорлово, пл. Ленина, д. 8", 3, 10, 0, 13, 0.2308], ["обл. Московская, р-н. Воскресенский, пгт. Хорлово, ул. 1 Пятилетка, д. 3", 2, 5, 0, 7, 0.2857], ["обл. Московская, г. Домодедово, мкр. Барыбино, ул. Вокзальная 2-я, д. 46", 3, 9, 0, 12, 0.25], ["обл. Московская, г. Домодедово, д. Чурилково, д. 7Б", 3, 11, 0, 14, 0.2143], ["обл. Московская, г. Домодедово, мкр. Западный, ул. Текстильщиков, д. 4а", 2, 7, 0, 9, 0.2222], ["обл. Московская, р-н. Клинский, г. Клин, ул. Чайковского, д. 31", 3, 14, 0, 17, 0.1765], ["обл. Московская, г. Коломна, ул. Набережная, д. 12", 1, 6, 0, 7, 0.1429], ["обл. Московская, р-н. Озерский, г. Озеры, кв-л. Текстильщики, д. 13", 2, 6, 0, 8, 0.25], ["обл. Московская, г. Королев, мкр. Первомайский, ул. Кирова, д. 89", 2, 6, 0, 8, 0.25], ["обл. Московская, р-н. Мытищинский, г. Мытищи, ул. Институтская 2-я, д. 21", 3, 9, 0, 12, 0.25], ["обл. Московская, р-н. Мытищинский, г. Мытищи, ул. Ульяновская, д. 49а", 2, 15, 0, 17, 0.1176], ["обл. Московская, г. Подольск, мкр. Климовск, ул. Южный поселок, д. 10", 1, 9, 1, 11, 0.1818], ["обл. Московская, г. Подольск, мкр. Климовск, ул. Южный поселок, д. 14", 3, 12, 0, 15, 0.2], ["обл. Московская, г. Подольск, мкр. Климовск, ул. Южный поселок, д. 26", 3, 10, 0, 13, 0.2308], ["обл. Московская, г. Подольск, мкр. Климовск, ул. Южный поселок, д. 33", 2, 14, 0, 16, 0.125], ["обл. Московская, г. Подольск, мкр. Климовск, ул. Южный поселок, д. 4", 2, 11, 0, 13, 0.1538], ["обл. Московская, р-н. Пушкинский, г. Пушкино, ул. Лесная, д. 36", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Серпуховский, д. Борисово, ул. Гоголя, д. 22", 1, 9, 0, 10, 0.1], ["обл. Московская, р-н. Серпуховский, д. Пущино, ул. 2-я Пролетарская, д. 59", 1, 5, 0, 6, 0.1667], ["обл. Московская, р-н. Солнечногорский, г. Солнечногорск, д. Миронцево, мкр. Миронцево, ул. Центральная, д. 4", 1, 19, 0, 20, 0.05], ["обл. Московская, р-н. Солнечногорский, д. Стрелино, д. 65", 1, 4, 0, 5, 0.2], ["обл. Московская, р-н. Щелковский, г. Щелково, ул. Коммунистическая, д. 6", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Щелковский, г. Щелково, ул. Полевая, д. 8, к. а", 4, 14, 0, 18, 0.2222], ["обл. Московская, г. Электросталь, ул. Лесная, д. 28", 3, 7, 0, 10, 0.3], ["обл. Московская, р-н. Дмитровский, г. Дмитров, ул. Инженерная, д. 22", 2, 6, 0, 8, 0.25], ["обл. Московская, р-н. Можайский, г. Можайск, ул. Спортивная, д. 4", 2, 6, 0, 8, 0.25], ["обл. Московская, р-н. Можайский, п. Колычево, д. 7", 3, 13, 2, 18, 0.2778], ["обл. Московская, г. Егорьевск, ул. Восстания, д. 1А/17", 1, 7, 0, 8, 0.125], ["обл. Московская, р-н. Егорьевский, г. Егорьевск, ул. Александра Невского, д. 23", 1, 10, 0, 11, 0.0909], ["обл. Московская, р-н. Егорьевский, г. Егорьевск, ул. Благонравова, д. 3", 1, 7, 0, 8, 0.125], ["обл. Московская, р-н. Егорьевский, г. Егорьевск, ул. Горшкова, д. 28", 3, 7, 0, 10, 0.3], ["обл. Московская, р-н. Егорьевский, г. Егорьевск, ул. Лейтенанта Шмидта, д. 16", 2, 8, 0, 10, 0.2], ["обл. Московская, р-н. Егорьевский, г. Егорьевск, ул. Ленинская, д. 6", 3, 7, 0, 10, 0.3], ["обл. Московская, р-н. Егорьевский, г. Егорьевск, ул. Песочная, д. 13", 1, 5, 0, 6, 0.1667], ["обл. Московская, г. Егорьевск, п. Рязановский, ул. Комсомольская, д. 13", 2, 7, 0, 9, 0.2222], ["обл. Московская, г. Егорьевск, п. Рязановский, ул. Комсомольская, д. 18", 3, 9, 0, 12, 0.25], ["обл. Московская, г. Егорьевск, п. Рязановский, ул. Первомайская, д. 13/10", 2, 10, 0, 12, 0.1667], ["обл. Московская, р-н. Зарайский, г. Зарайск, ул. Ново-Пушкарская, д. 33", 1, 5, 0, 6, 0.1667], ["обл. Московская, р-н. Зарайский, г. Зарайск, ул. Первомайская, д. 44", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Истринский, г. Истра, ул. Академика Иосифьяна, д. 16", 1, 4, 0, 5, 0.2], ["обл. Московская, р-н. Истринский, п. Первомайский, д. 5", 1, 7, 0, 8, 0.125], ["обл. Московская, р-н. Истринский, г. Снегири, дп. Снегири, ул. Ленина, д. 30", 3, 7, 0, 10, 0.3], ["обл. Московская, р-н. Луховицкий, с. Дединово, ул. Красные Зори, д. 1", 1, 5, 0, 6, 0.1667], ["обл. Московская, р-н. Шатурский, рп. Мишеронский, ул. Луначарского, д. 10", 1, 7, 0, 8, 0.125], ["обл. Московская, р-н. Шатурский, п. Бакшеево, ул. Транспортная, д. 2", 1, 3, 0, 4, 0.25], ["обл. Московская, г. Рошаль, ул. Октябрьской Революции, д. 18", 2, 5, 0, 7, 0.2857], ["обл. Московская, р-н. Шатурский, рп. Черусти, ул. Школьная, д. 7", 1, 5, 0, 6, 0.1667], ["обл. Московская, р-н. Шаховской, д. Аксаково, д. 43", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Наро-Фоминский, п. Леспромхоз, ул. Радиотехническая, д. 53", 4, 11, 0, 15, 0.2667], ["обл. Московская, р-н. Наро-Фоминский, п. Леспромхоз, ул. Радиотехническая, д. 63", 5, 17, 0, 22, 0.2273], ["обл. Московская, р-н. Орехово-Зуевский, г. Дрезна, ул. Революции, д. 16", 1, 5, 0, 6, 0.1667], ["обл. Московская, р-н. Орехово-Зуевский, г. Ликино-Дулево, ул. 30 лет ВЛКСМ, д. 12", 2, 6, 0, 8, 0.25], ["обл. Московская, р-н. Орехово-Зуевский, г. Ликино-Дулево, ул. Кирова, д. 11", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Орехово-Зуевский, г. Ликино-Дулево, ул. Кирова, д. 17", 2, 6, 0, 8, 0.25], ["обл. Московская, р-н. Орехово-Зуевский, г. Ликино-Дулево, ул. Луначарского, д. 11", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Орехово-Зуевский, г. Ликино-Дулево, ул. Луначарского, д. 13", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Орехово-Зуевский, г. Ликино-Дулево, ул. Луначарского, д. 15", 1, 5, 0, 6, 0.1667], ["обл. Московская, р-н. Орехово-Зуевский, г. Ликино-Дулево, ул. Луначарского, д. 17", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Орехово-Зуевский, г. Ликино-Дулево, ул. Луначарского, д. 19", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Орехово-Зуевский, г. Ликино-Дулево, ул. Луначарского, д. 25", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Орехово-Зуевский, г. Ликино-Дулево, ул. Новикова-Прибоя, д. 1", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Орехово-Зуевский, г. Ликино-Дулево, ул. Новикова-Прибоя, д. 10", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Орехово-Зуевский, г. Ликино-Дулево, ул. Новикова-Прибоя, д. 8", 1, 3, 0, 4, 0.25], ["обл. Московская, г. Орехово-Зуево, ул. Стаханова, д. 8", 3, 11, 0, 14, 0.2143], ["обл. Московская, р-н. Орехово-Зуевский, п. Верея (Верейское с/п), ул. Центральная, д. 38", 2, 6, 0, 8, 0.25], ["обл. Московская, р-н. Павлово-Посадский, г. Павловский Посад, пер. 1-й 1 Мая, д. 14", 4, 12, 0, 16, 0.25], ["обл. Московская, р-н. Павлово-Посадский, г. Павловский Посад, пер. 1-й 1 Мая, д. 18", 3, 10, 0, 13, 0.2308], ["обл. Московская, р-н. Павлово-Посадский, г. Павловский Посад, пер. 2-й 1 Мая, д. 2", 4, 12, 0, 16, 0.25], ["обл. Московская, р-н. Павлово-Посадский, г. Павловский Посад, пер. Герцена, д. 21", 3, 9, 0, 12, 0.25], ["обл. Московская, р-н. Павлово-Посадский, г. Павловский Посад, пер. Интернациональный, д. 4", 3, 8, 0, 11, 0.2727], ["обл. Московская, р-н. Павлово-Посадский, г. Павловский Посад, ул. Большая Покровская, д. 29", 3, 9, 0, 12, 0.25], ["обл. Московская, р-н. Павлово-Посадский, г. Павловский Посад, ул. Интернациональная, д. 130", 1, 4, 0, 5, 0.2], ["обл. Московская, р-н. Павлово-Посадский, г. Павловский Посад, ул. Интернациональная, д. 132/1", 2, 6, 0, 8, 0.25], ["обл. Московская, р-н. Павлово-Посадский, г. Павловский Посад, ул. Каляева, д. 4", 1, 13, 0, 14, 0.0714], ["обл. Московская, г. Электрогорск, ул. Комсомольская, д. 3", 1, 7, 0, 8, 0.125], ["обл. Московская, г. Электрогорск, ул. Комсомольская, д. 4", 1, 7, 0, 8, 0.125], ["обл. Московская, г. Электрогорск, ул. Комсомольская, д. 5", 2, 8, 0, 10, 0.2], ["обл. Московская, р-н. Раменский, п. Комбината стройматериалов-1, д. 2", 2, 6, 0, 8, 0.25], ["обл. Московская, р-н. Рузский, д. Мишинка, ул. Сосновая, д. 68", 1, 6, 0, 7, 0.1429], ["обл. Московская, р-н. Рузский, д. Сумароково, д. 13", 1, 7, 0, 8, 0.125], ["обл. Московская, р-н. Рузский, п. Колюбакино, ул. Майора Алексеева, д. 3", 3, 9, 0, 12, 0.25], ["обл. Московская, р-н. Рузский, с. Покровское, городок. Жилой, д. 56", 7, 21, 0, 28, 0.25], ["обл. Московская, р-н. Сергиево-Посадский, г. Краснозаводск, ул. Горького, д. 14", 13, 34, 0, 47, 0.2766], ["обл. Московская, р-н. Сергиево-Посадский, г. Краснозаводск, ул. Горького, д. 3", 11, 30, 0, 41, 0.2683], ["обл. Московская, г. Сергиев Посад, ул. Пионерская, д. 11", 1, 5, 0, 6, 0.1667], ["обл. Московская, г. Сергиев Посад, ул. Строительная, д. 18", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Талдомский, рп. Вербилки, ул. Привокзальная, д. 3", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Талдомский, д. Парашино, д. 1", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Талдомский, г. Талдом, ул. Вокзальная, д. 22/19", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Талдомский, г. Талдом, ул. Калязинская, д. 21", 1, 3, 0, 4, 0.25], ["обл. Московская, р-н. Талдомский, г. Талдом, ул. Тверская, д. 43", 1, 5, 0, 6, 0.1667], ["обл. Московская, р-н. Талдомский, г. Талдом, ул. Тверская, д. 49", 1, 3, 0, 4, 0.25]];
+var DO30 = DO30_DATA.map(function(x){ return x[0]; });
+
+var ADDR_TYPES = /^(обл|р-н|район|г|город|гп|рп|пгт|п|пос|поселок|д|дер|деревня|с|село|х|мкр|микрорайон|ул|улица|пер|переулок|пр|пр-д|проезд|пр-кт|просп|проспект|туп|тупик|ш|шоссе|б-р|бульвар|пл|площадь|наб|набережная|кв-л|квартал|тер|снт|дп|ст|ал|аллея|линия)\.?$/;
+function addrWords(part){
+  return norm(part).replace(/[«»"()]/g,' ').split(/[\s.]+/).filter(function(w){ return w && !ADDR_TYPES.test(w); }).join(' ');
+}
+function houseNo(part){ return norm(part).replace(/^(д|дом)\.?\s*/,'').replace(/\s+/g,'').replace(/^№/,''); }
+/* Улица и номер дома: номер — последняя часть «д. N», улица — часть перед ней. */
+function splitAddr(str){
+  var parts = String(str||'').split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+  var hi = -1;
+  for(var i=parts.length-1;i>=0;i--){ if(/^(д|дом)\.?\s*\d/i.test(norm(parts[i]))){ hi = i; break; } }
+  if(hi < 0) return null;
+  /* слова улицы сортируются: «ул. 2-я Вокзальная» = «ул. Вокзальная 2-я» */
+  return { street: hi > 0 ? addrWords(parts[hi-1]).split(' ').sort().join(' ') : '', house: houseNo(parts[hi]) };
+}
+/* Дома, отмеченные красным по вашему списку (дополнительно к файлу «До 30%»). */
+var RED_EXTRA = [
+  'г. Домодедово, д. Чурилково, д. 7в',
+  'г. Домодедово, мкр. Барыбино, ул. 2-я Вокзальная, д. 46',
+  'г. Домодедово, мкр. Западный, ул. Текстильщиков, д. 10б',
+  'п. Инженерный 1, д. 51',
+  'г. Домодедово, мкр. Белые Столбы, ул. Кирова, д. 3'
+];
+var DO30_IDX = null;
+function do30Index(){
+  if(DO30_IDX) return DO30_IDX;
+  DO30_IDX = {};
+  DO30.concat(RED_EXTRA).forEach(function(a){
+    var x = splitAddr(a); if(!x) return;
+    var k = x.street + '|' + x.house;
+    (DO30_IDX[k] = DO30_IDX[k] || []).push(' ' + addrWords(a.split(',').join(' , ')) + ' ');
+  });
+  return DO30_IDX;
+}
+function isDo30(h){
+  var x = splitAddr(h.addr); if(!x) return false;
+  var list = do30Index()[x.street + '|' + x.house]; if(!list) return false;
+  /* населённый пункт: из столбца «Населённый пункт» (допускается обрезанное написание,
+     «мкр. Барыбин» = «мкр. Барыбино») или из частей самого адреса до улицы */
+  var places = [];
+  var np = addrWords(h.np); if(np) places.push(np);
+  var parts = String(h.addr||'').split(',');
+  parts.slice(0, Math.max(0, parts.length - 2)).forEach(function(p){ var w = addrWords(p); if(w && w !== 'московская') places.push(w); });
+  if(!places.length) return true;
+  return list.some(function(full){
+    return places.some(function(pl){ return full.indexOf(' ' + pl + ' ') >= 0 || (pl.length >= 5 && full.indexOf(' ' + pl) >= 0); });
+  });
+}
+
+/* Встроенные координаты (выгружены из кэша браузера). Ключ — адрес в том виде,
+   в каком он уходит в геокодер. Срок жизни — 30 дней от даты выгрузки
+   (п. 5.1.5 условий Яндекса); после этого адрес ищется заново.
+   Формат: ключ: [широта, долгота, точность, вид объекта]. */
+/* Координаты, уточнённые вручную: 9 домов списка «До 30%» (файл «Координаты.xlsx»)
+   и 5 домов вкладки «Карта» (Голицыно, ул. Новая, д. 65–68; Одинцово, Военный городок, д. 37). Это ваши данные, а не ответ геокодера,
+   поэтому срок 30 дней на них не распространяется; геокодер по ним не вызывается. */
+var MANUAL_COORDS = {"обл. московская, г. подольск, мкр. климовск, ул. южный поселок, д. 10":[55.37192,37.55142],"обл. московская, г. подольск, мкр. климовск, ул. южный поселок, д. 4":[55.37192,37.55142],"обл. московская, р-н. истринский, г. истра, ул. академика иосифьяна, д. 16":[55.90419,36.853079],"обл. московская, р-н. павлово-посадский, г. павловский посад, ул. интернациональная, д. 132/1":[55.776249,38.713265],"обл. московская, г. сергиев посад, ул. строительная, д. 18":[56.284434,38.129109],"обл. московская, р-н. солнечногорский, г. солнечногорск, д. миронцево, мкр. миронцево, ул. центральная, д. 4":[56.123035,36.869812],"обл. московская, г. подольск, мкр. климовск, ул. южный поселок, д. 14":[55.366633,37.536903],"обл. московская, г. подольск, мкр. климовск, ул. южный поселок, д. 26":[55.364998,37.539696],"обл. московская, г. подольск, мкр. климовск, ул. южный поселок, д. 33":[55.366203,37.537757],"московская область, одинцово, город голицыно, г. одинцово, г. голицыно, ул. новая, д. 65":[55.587877,36.930114],"московская область, одинцово, город голицыно, г. одинцово, г. голицыно, ул. новая, д. 66":[55.588253,36.929981],"московская область, одинцово, город голицыно, г. одинцово, г. голицыно, ул. новая, д. 67":[55.588623,36.92982],"московская область, одинцово, город голицыно, г. одинцово, г. голицыно, ул. новая, д. 68":[55.588366,36.930644],"московская область, одинцово, город одинцово, г. одинцово, г-к. военный, д. 37":[55.681,37.330405]};
+var GEO_SEED_DATE = '2026-09-22';
+var GEO_SEED = {"московская область, домодедово, д. чурилково, г. домодедово, д. чурилково, д. 7в":[55.491967,37.834578],"московская область, домодедово, д. чурилково, г. домодедово, д. чурилково, д. 8б":[55.49542,37.828299],"московская область, домодедово, мкр. барыбино, г. домодедово, мкр. барыбино, ул. 2-я вокзальная, д. 46":[55.275339,37.895412],"московская область, домодедово, мкр. барыбино, г. домодедово, мкр. барыбино, ул. 2-я вокзальная, д. 5а":[55.267051,37.898449],"московская область, домодедово, мкр. белые столбы, г. домодедово, мкр. белые столбы, ул. 2-я московская, д. 62":[55.323014,37.854934],"московская область, домодедово, мкр. белые столбы, г. домодедово, мкр. белые столбы, ул. кирова, д. 3":[55.331807,37.850991],"московская область, домодедово, мкр. востряково, г. домодедово, мкр. востряково, ул. донбасская, д. 62а":[55.395118,37.804602],"московская область, домодедово, мкр. западный, г. домодедово, мкр. западный, ул. текстильщиков, д. 10б":[55.438266,37.727221],"московская область, домодедово, мкр. западный, г. домодедово, мкр. западный, ул. текстильщиков, д. 16а":[55.437449,37.727688],"московская область, домодедово, мкр. западный, г. домодедово, мкр. западный, ул. текстильщиков, д. 4а":[55.43938,37.727284],"московская область, домодедово, мкр. северный, г. домодедово, мкр. северный, ул. ломоносова, д. 10/10":[55.452334,37.737551],"московская область, домодедово, мкр. северный, г. домодедово, мкр. северный, ул. речная, д. 1":[55.49086,37.721247],"московская область, домодедово, мкр. северный, г. домодедово, мкр. северный, ул. речная, д. 3":[55.490667,37.721031],"московская область, домодедово, мкр. центральный, г. домодедово, мкр. центральный, ул. корнеева, д. 30":[55.431724,37.775326],"московская область, домодедово, с. лобаново, г. домодедово, с. лобаново, ул. знаменская, д. 2":[55.302007,37.948862],"московская область, красногорск, г. красногорск, проезд. чехова, д. 5":[55.817345,37.337334],"московская область, красногорск, г. красногорск, ул. маяковского, д. 1":[55.828627,37.330588],"московская область, красногорск, п. инженерный 1, п. инженерный 1, д. 12":[55.786718,37.204051],"московская область, красногорск, п. инженерный 1, п. инженерный 1, д. 51":[55.790251,37.199982],"московская область, одинцово, большие вяземы, г. одинцово, пгт. большие вяземы, ул. институт, д. 2":[55.626573,36.994618],"московская область, одинцово, большие вяземы, г. одинцово, пгт. большие вяземы, ул. институт, д. 6":[55.627305,36.995058],"московская область, одинцово, город голицыно, г. одинцово, г. голицыно, пер. банный, д. 2":[55.616747,36.990458],"московская область, одинцово, город голицыно, г. одинцово, г. голицыно, пер. банный, д. 2а":[55.61692,36.991006],"московская область, одинцово, город голицыно, г. одинцово, г. голицыно, пер. банный, д. 3":[55.617037,36.991761],"московская область, одинцово, город голицыно, г. одинцово, г. голицыно, ул. новая, д. 65":[55.679895,37.277865],"московская область, одинцово, город голицыно, г. одинцово, г. голицыно, ул. новая, д. 66":[55.679895,37.277865],"московская область, одинцово, город голицыно, г. одинцово, г. голицыно, ул. новая, д. 67":[55.666944,37.257932],"московская область, одинцово, город голицыно, г. одинцово, г. голицыно, ул. новая, д. 68":[55.679895,37.277865],"московская область, одинцово, город одинцово, г. одинцово, г-к. военный, д. 37":[55.679138,37.263663],"московская область, одинцово, город одинцово, г. одинцово, ш. буденновское, д. 11":[55.666868,37.329025],"московская область, химки, п. санатория \"энергия\", г. химки, п. санатория \"энергия\", д. 8":[55.914065,37.21625],"обл. московская, г. балашиха, ул. калинина, д. 4а":[55.818842,37.972946,"exact","house"],"обл. московская, г. бронницы, ул. советская, д. 60":[55.42474,38.266929,"exact","house"],"обл. московская, г. домодедово, д. чурилково, д. 7б":[55.492268,37.834093,"exact","house"],"обл. московская, г. домодедово, мкр. барыбино, ул. вокзальная 2-я, д. 46":[55.275339,37.895412,"exact","house"],"обл. московская, г. домодедово, мкр. западный, ул. текстильщиков, д. 4а":[55.43938,37.727284,"exact","house"],"обл. московская, г. егорьевск, п. рязановский, ул. комсомольская, д. 13":[55.132412,39.550316,"exact","house"],"обл. московская, г. егорьевск, п. рязановский, ул. комсомольская, д. 18":[55.131053,39.551151,"exact","house"],"обл. московская, г. егорьевск, п. рязановский, ул. первомайская, д. 13/10":[55.132515,39.549345,"exact","house"],"обл. московская, г. егорьевск, ул. восстания, д. 1а/17":[55.377179,39.019384,"exact","house"],"обл. московская, г. коломна, ул. набережная, д. 12":[55.073664,38.863859,"exact","house"],"обл. московская, г. королев, мкр. первомайский, ул. кирова, д. 89":[55.946925,37.879764,"exact","house"],"обл. московская, г. орехово-зуево, ул. стаханова, д. 8":[55.790555,38.924271,"exact","house"],"обл. московская, г. подольск, мкр. климовск, ул. южный поселок, д. 10":[55.37192,37.55142,"near","house"],"обл. московская, г. подольск, мкр. климовск, ул. южный поселок, д. 14":[55.37501,37.538988,"other","district"],"обл. московская, г. подольск, мкр. климовск, ул. южный поселок, д. 26":[55.37501,37.538988,"other","district"],"обл. московская, г. подольск, мкр. климовск, ул. южный поселок, д. 33":[55.37501,37.538988,"other","district"],"обл. московская, г. подольск, мкр. климовск, ул. южный поселок, д. 4":[55.37192,37.55142,"near","house"],"обл. московская, г. рошаль, ул. октябрьской революции, д. 18":[55.658911,39.87158,"exact","house"],"обл. московская, г. сергиев посад, ул. пионерская, д. 11":[56.312435,38.139062,"exact","house"],"обл. московская, г. сергиев посад, ул. строительная, д. 18":[56.284119,38.141191,"near","house"],"обл. московская, г. электрогорск, ул. комсомольская, д. 3":[55.890709,38.775016,"exact","house"],"обл. московская, г. электрогорск, ул. комсомольская, д. 4":[55.891017,38.775734,"exact","house"],"обл. московская, г. электрогорск, ул. комсомольская, д. 5":[55.891229,38.776345,"exact","house"],"обл. московская, г. электросталь, ул. лесная, д. 28":[55.799133,38.488399,"exact","house"],"обл. московская, р-н. волоколамский, г. волоколамск, ул. свободы, д. 16":[56.065806,35.921652,"exact","house"],"обл. московская, р-н. волоколамский, г. волоколамск, ул. советская, д. 33":[56.035165,35.967205,"exact","house"],"обл. московская, р-н. волоколамский, с. теряево, ул. советская, д. 38":[56.17261,36.123297,"exact","house"],"обл. московская, р-н. воскресенский, г. воскресенск, ул. андреса, д. 7":[55.341439,38.722824,"exact","house"],"обл. московская, р-н. воскресенский, г. воскресенск, ул. московская, д. 4, стр. в":[55.265927,38.740404,"exact","house"],"обл. московская, р-н. воскресенский, д. городище, ул. мира, д. 11":[55.347633,38.585103,"exact","house"],"обл. московская, р-н. воскресенский, д. щербово, ул. малага, д. 3":[55.392828,38.708163,"exact","house"],"обл. московская, р-н. воскресенский, пгт. им цюрупы, ул. октябрьская, д. 32":[55.498347,38.63805,"exact","house"],"обл. московская, р-н. воскресенский, пгт. хорлово, пл. ленина, д. 8":[55.327562,38.814586,"exact","house"],"обл. московская, р-н. воскресенский, пгт. хорлово, ул. 1 пятилетка, д. 3":[55.320171,38.813032,"exact","house"],"обл. московская, р-н. воскресенский, с. барановское, ул. фабрики вперед, д. 6":[55.403461,38.752486,"exact","house"],"обл. московская, р-н. дмитровский, г. дмитров, ул. инженерная, д. 22":[56.337696,37.531325,"exact","house"],"обл. московская, р-н. егорьевский, г. егорьевск, ул. александра невского, д. 23":[55.379828,39.041968,"exact","house"],"обл. московская, р-н. егорьевский, г. егорьевск, ул. благонравова, д. 3":[55.378421,39.024145,"exact","house"],"обл. московская, р-н. егорьевский, г. егорьевск, ул. горшкова, д. 28":[55.369597,39.030532,"exact","house"],"обл. московская, р-н. егорьевский, г. егорьевск, ул. лейтенанта шмидта, д. 16":[55.383664,39.033847,"exact","house"],"обл. московская, р-н. егорьевский, г. егорьевск, ул. ленинская, д. 6":[55.379373,39.037063,"exact","house"],"обл. московская, р-н. егорьевский, г. егорьевск, ул. песочная, д. 13":[55.400292,39.036875,"exact","house"],"обл. московская, р-н. зарайский, г. зарайск, ул. ново-пушкарская, д. 33":[54.749855,38.865835,"exact","house"],"обл. московская, р-н. зарайский, г. зарайск, ул. первомайская, д. 44":[54.759805,38.873597,"exact","house"],"обл. московская, р-н. истринский, г. истра, ул. академика иосифьяна, д. 16":[55.90419,36.853079,"number","house"],"обл. московская, р-н. истринский, г. снегири, дп. снегири, ул. ленина, д. 30":[55.881954,37.041941,"exact","house"],"обл. московская, р-н. истринский, п. первомайский, д. 5":[55.915251,36.792389,"exact","house"],"обл. московская, р-н. клинский, г. клин, ул. чайковского, д. 31":[56.3329,36.741859,"exact","house"],"обл. московская, р-н. луховицкий, с. дединово, ул. красные зори, д. 1":[55.056311,39.148445,"exact","house"],"обл. московская, р-н. можайский, г. можайск, ул. спортивная, д. 4":[55.491977,36.03616,"exact","house"],"обл. московская, р-н. можайский, п. колычево, д. 7":[55.468198,36.003102,"exact","house"],"обл. московская, р-н. мытищинский, г. мытищи, ул. институтская 2-я, д. 21":[55.930781,37.790058,"exact","house"],"обл. московская, р-н. мытищинский, г. мытищи, ул. ульяновская, д. 49а":[55.890371,37.730428,"exact","house"],"обл. московская, р-н. наро-фоминский, п. леспромхоз, ул. радиотехническая, д. 53":[55.359666,36.755468,"exact","house"],"обл. московская, р-н. наро-фоминский, п. леспромхоз, ул. радиотехническая, д. 63":[55.35921,36.755163,"exact","house"],"обл. московская, р-н. ногинский, г. ногинск, туп. картонный, д. 22/1":[55.861873,38.49714,"exact","house"],"обл. московская, р-н. ногинский, г. ногинск, ул. 3 интернационала, д. 114":[55.851975,38.429182,"exact","house"],"обл. московская, р-н. ногинский, г. ногинск, ул. 3 интернационала, д. 147":[55.844223,38.410506,"exact","house"],"обл. московская, р-н. ногинский, г. ногинск, ул. рабочая, д. 46":[55.855588,38.433611,"exact","house"],"обл. московская, р-н. ногинский, г. электроугли, пер. 1-ый троицкий, д. 10а":[55.716772,38.210128,"exact","house"],"обл. московская, р-н. озерский, г. озеры, кв-л. текстильщики, д. 13":[54.862689,38.538534,"exact","house"],"обл. московская, р-н. орехово-зуевский, г. дрезна, ул. революции, д. 16":[55.747196,38.855083,"exact","house"],"обл. московская, р-н. орехово-зуевский, г. ликино-дулево, ул. 30 лет влксм, д. 12":[55.73369,38.954724,"exact","house"],"обл. московская, р-н. орехово-зуевский, г. ликино-дулево, ул. кирова, д. 11":[55.708902,38.959413,"exact","house"],"обл. московская, р-н. орехово-зуевский, г. ликино-дулево, ул. кирова, д. 17":[55.708592,38.960491,"exact","house"],"обл. московская, р-н. орехово-зуевский, г. ликино-дулево, ул. луначарского, д. 11":[55.702353,38.954274,"exact","house"],"обл. московская, р-н. орехово-зуевский, г. ликино-дулево, ул. луначарского, д. 13":[55.702064,38.954167,"exact","house"],"обл. московская, р-н. орехово-зуевский, г. ликино-дулево, ул. луначарского, д. 15":[55.70176,38.954068,"exact","house"],"обл. московская, р-н. орехово-зуевский, г. ликино-дулево, ул. луначарского, д. 17":[55.70146,38.953978,"exact","house"],"обл. московская, р-н. орехово-зуевский, г. ликино-дулево, ул. луначарского, д. 19":[55.701161,38.953888,"exact","house"],"обл. московская, р-н. орехово-зуевский, г. ликино-дулево, ул. луначарского, д. 25":[55.70071,38.954751,"exact","house"],"обл. московская, р-н. орехово-зуевский, г. ликино-дулево, ул. новикова-прибоя, д. 1":[55.702936,38.955065,"exact","house"],"обл. московская, р-н. орехово-зуевский, г. ликино-дулево, ул. новикова-прибоя, д. 10":[55.703626,38.951822,"exact","house"],"обл. московская, р-н. орехово-зуевский, г. ликино-дулево, ул. новикова-прибоя, д. 8":[55.70355,38.952415,"exact","house"],"обл. московская, р-н. орехово-зуевский, п. верея (верейское с/п), ул. центральная, д. 38":[55.775748,39.097717,"exact","house"],"обл. московская, р-н. павлово-посадский, г. павловский посад, пер. 1-й 1 мая, д. 14":[55.783499,38.614774,"exact","house"],"обл. московская, р-н. павлово-посадский, г. павловский посад, пер. 1-й 1 мая, д. 18":[55.78445,38.614442,"exact","house"],"обл. московская, р-н. павлово-посадский, г. павловский посад, пер. 2-й 1 мая, д. 2":[55.78319,38.614127,"exact","house"],"обл. московская, р-н. павлово-посадский, г. павловский посад, пер. герцена, д. 21":[55.784607,38.675177,"exact","house"],"обл. московская, р-н. павлово-посадский, г. павловский посад, пер. интернациональный, д. 4":[55.776537,38.708954,"exact","house"],"обл. московская, р-н. павлово-посадский, г. павловский посад, ул. большая покровская, д. 29":[55.776173,38.652063,"exact","house"],"обл. московская, р-н. павлово-посадский, г. павловский посад, ул. интернациональная, д. 130":[55.776679,38.712349,"exact","house"],"обл. московская, р-н. павлово-посадский, г. павловский посад, ул. интернациональная, д. 132/1":[55.776249,38.713265,"number","house"],"обл. московская, р-н. павлово-посадский, г. павловский посад, ул. каляева, д. 4":[55.77832,38.675923,"exact","house"],"обл. московская, р-н. пушкинский, г. пушкино, ул. лесная, д. 36":[56.018021,37.840894,"exact","house"],"обл. московская, р-н. раменский, п. комбината стройматериалов-1, д. 2":[55.608017,38.442181,"exact","house"],"обл. московская, р-н. рузский, д. мишинка, ул. сосновая, д. 68":[55.479883,36.420181,"exact","house"],"обл. московская, р-н. рузский, д. сумароково, д. 13":[55.765853,35.91796,"exact","house"],"обл. московская, р-н. рузский, п. колюбакино, ул. майора алексеева, д. 3":[55.669671,36.538552,"exact","house"],"обл. московская, р-н. рузский, с. покровское, городок. жилой, д. 56":[55.862722,36.333188,"exact","house"],"обл. московская, р-н. сергиево-посадский, г. краснозаводск, ул. горького, д. 14":[56.436372,38.217881,"exact","house"],"обл. московская, р-н. сергиево-посадский, г. краснозаводск, ул. горького, д. 3":[56.437631,38.22513,"exact","house"],"обл. московская, р-н. серпуховский, д. борисово, ул. гоголя, д. 22":[54.910814,37.494135,"exact","house"],"обл. московская, р-н. серпуховский, д. пущино, ул. 2-я пролетарская, д. 59":[54.937862,37.359873,"exact","house"],"обл. московская, р-н. солнечногорский, г. солнечногорск, д. миронцево, мкр. миронцево, ул. центральная, д. 4":[56.139667,36.895974,"street","street"],"обл. московская, р-н. солнечногорский, д. стрелино, д. 65":[56.17026,36.923624,"exact","house"],"обл. московская, р-н. талдомский, г. талдом, ул. вокзальная, д. 22/19":[56.726465,37.529564,"exact","house"],"обл. московская, р-н. талдомский, г. талдом, ул. калязинская, д. 21":[56.731062,37.524049,"exact","house"],"обл. московская, р-н. талдомский, г. талдом, ул. тверская, д. 43":[56.73003,37.523258,"exact","house"],"обл. московская, р-н. талдомский, г. талдом, ул. тверская, д. 49":[56.730356,37.524327,"exact","house"],"обл. московская, р-н. талдомский, д. парашино, д. 1":[56.823158,37.675738,"exact","house"],"обл. московская, р-н. талдомский, рп. вербилки, ул. привокзальная, д. 3":[56.548783,37.559757,"exact","house"],"обл. московская, р-н. шатурский, п. бакшеево, ул. транспортная, д. 2":[55.70951,39.878641,"exact","house"],"обл. московская, р-н. шатурский, рп. мишеронский, ул. луначарского, д. 10":[55.719815,39.740354,"exact","house"],"обл. московская, р-н. шатурский, рп. черусти, ул. школьная, д. 7":[55.547749,39.98961,"exact","house"],"обл. московская, р-н. шаховской, д. аксаково, д. 43":[56.091899,35.613808,"exact","house"],"обл. московская, р-н. щелковский, г. щелково, ул. коммунистическая, д. 6":[55.919513,37.985055,"exact","house"],"обл. московская, р-н. щелковский, г. щелково, ул. полевая, д. 8, к. а":[55.932818,37.995682,"exact","house"]};
+function geoCache(){
+  var c = {};
+  try{ c = JSON.parse(localStorage.getItem(GEO_KEY)) || {}; }catch(e){ c = {}; }
+  var t = GEO_SEED_DATE ? Date.parse(GEO_SEED_DATE) : 0;
+  if(t){
+    for(var k in GEO_SEED){
+      var e = c[k], v = GEO_SEED[k];
+      if(!e || (!e.c && !e.miss) || e.t < t) c[k] = { c:[v[0], v[1]], p:v[2] || 'other', k:v[3] || '', t:t };
+    }
+  }
+  return c;
+}
+/* Выгрузка кэша: одна строка на адрес — ключ<TAB>широта<TAB>долгота<TAB>точность<TAB>вид */
+function geoExportText(){
+  var c = geoCache(), lines = [];
+  Object.keys(c).sort().forEach(function(k){
+    var e = c[k]; if(!e || !e.c) return;
+    lines.push([k, e.c[0].toFixed(6), e.c[1].toFixed(6), e.p || '', e.k || ''].join('\t'));
+  });
+  return lines;
+}
+document.addEventListener('click', function(e){
+  if(e.target.closest('[data-geoexp]')){
+    var lines = geoExportText();
+    document.getElementById('geo-text').value = lines.join('\n');
+    document.getElementById('geo-modal-cnt').textContent = 'адресов: ' + lines.length + ' · ' + new Date().toISOString().slice(0,10);
+    document.getElementById('geo-modal').hidden = false;
+    return;
+  }
+  if(e.target.id === 'geo-close' || e.target.id === 'geo-modal') document.getElementById('geo-modal').hidden = true;
+  if(e.target.id === 'geo-copy'){
+    var ta = document.getElementById('geo-text'); ta.focus(); ta.select();
+    var ok = false;
+    try{ ok = document.execCommand('copy'); }catch(x){}
+    if(!ok && navigator.clipboard) navigator.clipboard.writeText(ta.value);
+    e.target.textContent = 'Скопировано';
+    setTimeout(function(){ e.target.textContent = 'Скопировать'; }, 1500);
+  }
+});
+document.addEventListener('keydown', function(e){ if(e.key === 'Escape') document.getElementById('geo-modal').hidden = true; });
+function geoSave(c){ try{ localStorage.setItem(GEO_KEY, JSON.stringify(c)); }catch(e){} }
+function today(){ var d = new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function dayUsed(){
+  try{ var o = JSON.parse(localStorage.getItem(GEO_DAY)) || {}; return o.d === today() ? (o.n||0) : 0; }catch(e){ return 0; }
+}
+function dayTake(){                              // резерв запроса до обращения к API
+  var n = dayUsed();
+  if(n >= GEO_LIMIT) return false;
+  try{ localStorage.setItem(GEO_DAY, JSON.stringify({ d:today(), n:n+1 })); }catch(e){}
+  return true;
+}
+function addrNoRegion(a){ return String(a||'').replace(/^\s*(обл\.?\s*московская|московская\s+обл(\.|асть)?)\s*,\s*/i, ''); }
+function geoQuery(h){
+  return 'Московская область, ' + h.okrug + (h.np ? ', ' + h.np : '') + ', ' + addrNoRegion(h.addr);
+}
+/* Координаты дома: сначала точный ключ, затем — по совпадению адреса в конце ключа
+   (на случай, если в таблице поменялось написание населённого пункта или добавилось «обл. Московская»). */
+function findGeo(h, cache){
+  var k = norm(geoQuery(h));
+  if(MANUAL_COORDS[k]) return { c:MANUAL_COORDS[k] };
+  if(cache[k] && cache[k].c) return cache[k];
+  var tail = ', ' + norm(addrNoRegion(h.addr)), head = 'московская область, ' + norm(h.okrug) + ', ';
+  var keys = Object.keys(MANUAL_COORDS);
+  for(var i=0;i<keys.length;i++) if(keys[i].indexOf(head) === 0 && keys[i].slice(-tail.length) === tail) return { c:MANUAL_COORDS[keys[i]] };
+  keys = Object.keys(cache);
+  for(var j=0;j<keys.length;j++){ var e = cache[keys[j]]; if(e && e.c && keys[j].indexOf(head) === 0 && keys[j].slice(-tail.length) === tail) return e; }
+  return null;
+}
+
+function mapHouses(){
+  var agg = {}, order = [];
+  view.forEach(function(r){
+    var id = houseOf(r);
+    if(!agg[id]){
+      agg[id] = { id:id, okrug:okrugName(r), np:cell(r,'np'), addr:cell(r,'addr'), disp:fmtAddr(cell(r,'addr'), okrugName(r)), cnt:0, area:0, res:0, rest:0 };
+      order.push(id);
+    }
+    var h = agg[id];
+    h.cnt++; h.area += areaOf(r);
+    if(isResettled(r)) h.res++;
+    if(isRemaining(r)) h.rest++;
+  });
+  return order.map(function(id){ return agg[id]; }).filter(function(h){ return h.addr; });
+}
+
+function balloon(h, red){
+  return '<div style="font-family:IBM Plex Sans,sans-serif;font-size:13px;line-height:1.5;min-width:220px">' +
+    '<b>'+esc(h.disp)+'</b><br><span style="color:#767d87">'+esc(h.okrug)+(h.np?' · '+esc(h.np):'')+'</span><br>' +
+    'Ж/п: <b>'+fmtInt.format(h.cnt)+'</b> · площадь <b>'+fmtArea.format(h.area)+' м²</b><br>' +
+    'Расселено: <b>'+fmtInt.format(h.res)+'</b> · подлежит расселению: <b>'+fmtInt.format(h.rest)+'</b>' +
+    (red ? '<br><b style="color:#c0392b">В списке «До 30%»</b>' : '') + '</div>';
+}
+
+function drawMap(){
+  var note = document.getElementById('map-note');
+  if(typeof ymaps === 'undefined'){ note.textContent = 'Яндекс.Карты не загрузились: проверьте ключ и ограничение по домену'; return; }
+  var gen = ++mapGen;
+  ymaps.ready(function(){
+    if(gen !== mapGen) return;
+    if(!ymap){
+      ymap = new ymaps.Map('map', { center:[55.75,37.62], zoom:8, controls:['zoomControl','typeSelector','fullscreenControl'] },
+                          { suppressMapOpenBlock:true });
+    }
+    ymap.geoObjects.removeAll();
+    /* Каждый дом — отдельный значок; наложившиеся на масштабе — кружок с числом. */
+    /* Три слоя, каждый со своими кружками: дома «до 30%» не прячутся в кружки
+       с обычными домами и ЖК и всегда рисуются поверх. */
+    if(mainLayer) mainLayer.destroy();
+    var cl = mainLayer = new OverlapLayer(ymap);
+    var taken = {};
+
+    /* Новостройки — зелёные многоэтажки, координаты из файла */
+    var jkPms = JK_DATA.map(function(j){
+      return new ymaps.Placemark([j[5], j[6]], { balloonContent:jkBalloon(j), hintContent:'ЖК «'+j[1]+'» · '+j[0], grp:'jk' }, JK_ICON);
+    });
+    cl.addAll(jkPms);                      // новостройки видны при любом фильтре
+
+    /* Стрелки: клик по аварийному дому — стрелки до всех ЖК его округа с расстоянием по прямой */
+    var arrows = new ymaps.GeoObjectCollection();
+    ymap.geoObjects.add(arrows);
+    var activeHouse = null;
+    var DistLayout = ymaps.templateLayoutFactory.createClass('<div class="dist-label">$[properties.iconContent]</div>');
+    function drawArrows(h, from){
+      arrows.removeAll();
+      if(activeHouse === h){ activeHouse = null; return; }
+      activeHouse = h;
+      var key = okrKey(h.okrug), pts = [from];
+      JK_DATA.filter(function(j){ return okrKey(j[0]) === key; }).forEach(function(j){
+        var to = [j[5], j[6]];
+        var dist = ymaps.coordSystem.geo.getDistance(from, to);
+        /* наконечник — значок постоянного размера на экране (18 px), повёрнутый вдоль линии;
+           раньше это были два отрезка в градусах, и при приближении они вырастали до ~1 км */
+        var ang = 0;
+        try{
+          var proj = ymap.options.get('projection'), a1 = proj.toGlobalPixels(from, 10), a2 = proj.toGlobalPixels(to, 10);
+          ang = Math.atan2(a2[1]-a1[1], a2[0]-a1[0]);
+        }catch(e){}
+        var deg = ang * 180 / Math.PI;
+        var headSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18">' +
+          '<path d="M17 9 L2 2.5 L5.5 9 L2 15.5 Z" fill="#1e8a4c" stroke="#fff" stroke-width="1" stroke-linejoin="round" transform="rotate('+deg.toFixed(1)+' 9 9)"/></svg>';
+        arrows.add(new ymaps.Polyline([from, to], {}, { strokeColor:'#1e8a4c', strokeWidth:3, strokeOpacity:.85 }));
+        arrows.add(new ymaps.Placemark(to, {}, { iconLayout:'default#image',
+          iconImageHref:'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(headSvg),
+          iconImageSize:[18,18], iconImageOffset:[-9 - 8*Math.cos(ang), -9 - 8*Math.sin(ang)], zIndex:640, cursor:'default', hasHint:false, hasBalloon:false }));
+        arrows.add(new ymaps.Placemark([(from[0]+to[0])/2, (from[1]+to[1])/2],
+          { iconContent:fmtKm(dist), hintContent:'ЖК «'+j[1]+'»: '+fmtKm(dist)+' по прямой' },
+          { iconLayout:DistLayout, iconShape:{ type:'Rectangle', coordinates:[[-30,-12],[30,12]] }, zIndex:800 }));
+        pts.push(to);
+      });
+      if(pts.length > 1) try{ ymap.setBounds(ymaps.util.bounds.fromPoints(pts), { checkZoomRange:true, zoomMargin:60, duration:300 }); }catch(e){}
+    }
+    ymap.events.add('click', function(){ arrows.removeAll(); activeHouse = null; });
+
+    /* Пятна застройки: квадраты и синие мерцающие значки */
+    var spotCol = new ymaps.GeoObjectCollection();
+    ymap.geoObjects.add(spotCol);
+    var spotPts = SPOTS.map(function(){ return []; }), spotBounds = null;
+    var SpotLayout = ymaps.templateLayoutFactory.createClass(
+      '<div class="spot-ico"><img src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(HOUSE_SVG_BLUE) + '" alt=""></div>');
+    function drawSpots(){
+      spotCol.removeAll(); spotBounds = null;
+      if(!spotsOn) return;
+      var all = [];
+      SPOTS.forEach(function(sp, i){
+        var pts = spotPts[i]; if(!pts.length) return;
+        var b = ymaps.util.bounds.fromPoints(pts);
+        var cLat = (b[0][0]+b[1][0])/2, cLon = (b[0][1]+b[1][1])/2;
+        var hM = (b[1][0]-b[0][0]) * 111320, wM = (b[1][1]-b[0][1]) * 111320 * Math.cos(cLat*Math.PI/180);
+        var half = Math.max(hM, wM)/2 + 90;                 // квадрат с отступом 90 м
+        var dLat = half/111320, dLon = half/(111320*Math.cos(cLat*Math.PI/180));
+        var sq = [[cLat-dLat, cLon-dLon], [cLat+dLat, cLon+dLon]];
+        spotCol.add(new ymaps.Rectangle(sq, { hintContent:'Пятно застройки: ' + sp.name + ' · домов: ' + pts.length },
+          { fillColor:'#1e7bff22', strokeColor:'#1e7bff', strokeWidth:3, strokeStyle:'dash', zIndex:500 }));
+        all.push(sq[0], sq[1]);
+      });
+      if(all.length) spotBounds = ymaps.util.bounds.fromPoints(all);
+    }
+
+    var houses = mapHouses().filter(function(h){
+      if(!mapFilter) return true;
+      if(mapFilter === 'jk') return false;
+      return mapFilter === 'red' ? isDo30(h) : !isDo30(h);
+    }), cache = geoCache(), now = Date.now(), queue = [], shown = 0, redCnt = 0;
+    function put(h, c){
+      /* Дома с одинаковыми координатами разводятся по кругу, чтобы не закрывали друг друга. */
+      var key = c[0].toFixed(5)+','+c[1].toFixed(5), k = taken[key] || 0;
+      taken[key] = k + 1;
+      var p = c;
+      if(k){ var a = k * 2.4, d = 0.00018 * Math.sqrt(k); p = [c[0] + d*Math.cos(a), c[1] + d*1.7*Math.sin(a)]; }
+      var red = isDo30(h);
+      if(red) redCnt++;
+      var si = spotOf(h);
+      var icon = red ? HOUSE_ICON_RED : HOUSE_ICON;
+      if(si >= 0){
+        spotPts[si].push(p);
+        if(spotsOn) icon = { iconLayout:SpotLayout, iconShape:{ type:'Rectangle', coordinates:[[-15,-26],[15,4]] },
+                             zIndex:760, hideIconOnBalloonOpen:false, balloonOffset:[0,-28] };
+      }
+      var pm = new ymaps.Placemark(p, { balloonContent:balloon(h, red) + (si >= 0 ? '<div style="font-family:IBM Plex Sans,sans-serif;font-size:12px;color:#1e7bff;font-weight:600;margin-top:4px">Пятно застройки: '+esc(SPOTS[si].name)+'</div>' : ''),
+        hintContent:h.disp + ' · ' + h.cnt + ' ж/п', grp: red ? 'red' : 'house' }, icon);
+      pm.events.add('click', function(){ drawArrows(h, p); });
+      cl.add(pm);
+      shown++;
+    }
+    houses.forEach(function(h){
+      var e = findGeo(h, cache);
+      if(e && e.c && (!e.t || now - e.t < GEO_TTL)) put(h, e.c); else queue.push(h);
+    });
+    function fit(){
+      drawSpots();
+      if(spotsOn && spotBounds){ try{ ymap.setBounds(spotBounds, { checkZoomRange:true, zoomMargin:60 }); }catch(e){} return; }
+      var isJk = function(p){ return p.properties.get('grp') === 'jk'; };
+      if(mapFilter === 'jk'){ try{ ymap.setBounds(cl.getBounds(isJk), { checkZoomRange:true, zoomMargin:40 }); }catch(e){} return; }
+      if(shown) try{
+        var bb = cl.getBounds(function(p){ return !isJk(p); });
+        if(bb) ymap.setBounds(bb, { checkZoomRange:true, zoomMargin:40 });
+      }catch(e){}
+    }
+    function status(extra){
+      if(mapFilter === 'jk'){ note.textContent = 'Новостроек на карте: ' + fmtInt.format(JK_DATA.length); return; }
+      note.textContent = 'На карте ' + fmtInt.format(shown) + ' из ' + fmtInt.format(houses.length) + ' домов · до 30%: ' + fmtInt.format(redCnt) + (extra ? ' · ' + extra : '');
+    }
+    fit(); status(queue.length ? 'поиск адресов: ' + queue.length : '');
+
+    var miss = 0;
+    (function next(){
+      if(gen !== mapGen) return;
+      if(!queue.length){ fit(); status(miss ? 'не найдено: ' + miss : ''); return; }
+      if(!dayTake()){ fit(); status('суточный лимит геокодера исчерпан, остальные дома появятся завтра'); return; }
+      var h = queue.shift();
+      ymaps.geocode(geoQuery(h), { results:1, boundedBy:MO_BOUNDS, strictBounds:true }).then(function(res){
+        var g = res.geoObjects.get(0);
+        if(g){
+          var c = g.geometry.getCoordinates(), cc = geoCache();
+          cc[norm(geoQuery(h))] = { c:c, t:Date.now(),
+            p:g.properties.get('metaDataProperty.GeocoderMetaData.precision') || '',
+            k:g.properties.get('metaDataProperty.GeocoderMetaData.kind') || '' }; geoSave(cc);
+          if(gen === mapGen) put(h, c);
+        } else miss++;
+        status('поиск адресов: ' + queue.length);
+        setTimeout(next, 120);
+      }, function(){ miss++; setTimeout(next, 300); });
+    })();
+  });
+}
+
+function switchTo(name){
+  tab = name;
+  document.getElementById('view-main').hidden = name !== 'main';
+  document.getElementById('view-map').hidden = name !== 'map';
+  document.getElementById('view-do30').hidden = name !== 'do30';
+  document.getElementById('nav-map').setAttribute('aria-pressed', name === 'map' ? 'true' : 'false');
+  document.getElementById('nav-do30').setAttribute('aria-pressed', name === 'do30' ? 'true' : 'false');
+  window.scrollTo({ top:0, behavior:'auto' });
+  if(name === 'map' && rows.length){ drawMap(); if(ymap) setTimeout(function(){ ymap.container.fitToViewport(); }, 50); }
+  if(name === 'do30'){ drawDo30(); if(ymap30) setTimeout(function(){ ymap30.container.fitToViewport(); }, 50); }
+}
+document.getElementById('nav-do30').addEventListener('click', function(){ switchTo(tab === 'do30' ? 'main' : 'do30'); });
+
+/* ═══ 9. Вкладка «До 30%»: все дома из файла «До 30%.xlsx» ═════════
+   Не зависит от таблицы дашборда. Координаты — тот же геокодер, кэш
+   и суточный лимит, что у вкладки «Карта».                            */
+var ymap30 = null, map30Gen = 0;
+function balloon30(d, cat){
+  var pct = Math.round(d[5]*1000)/10;
+  return '<div style="font-family:IBM Plex Sans,sans-serif;font-size:13px;line-height:1.5;min-width:240px">' +
+    '<b>'+esc(fmtAddr(d[0]))+'</b><br>' +
+    'Подлежит расселению: <b>'+fmtInt.format(d[1])+'</b><br>' +
+    'Расселено: <b>'+fmtInt.format(d[2])+'</b><br>' +
+    (d[3] ? 'Розыск собственника: <b>'+fmtInt.format(d[3])+'</b><br>' : '') +
+    'Общий итог: <b>'+fmtInt.format(d[4])+'</b><br>' +
+    'Остаток: <b style="color:#c0392b">'+String(pct).replace('.',',')+'%</b>' +
+    (cat ? '<br><span style="color:#767d87">Точка на карте: '+GEO_CATS[cat].label.toLowerCase()+'</span>' : '') + '</div>';
+}
+/* Точность геокодера Яндекса (metaDataProperty.GeocoderMetaData):
+   precision exact — дом найден точно; number / near / range — дом найден приблизительно;
+   street — только улица; other — по kind: locality — населённый пункт,
+   district — микрорайон / район города, area / province — район / область. */
+var GEO_CATS = {
+  house:    { label:'Точно до дома',             color:'#0e7361' },
+  manual:   { label:'Уточнено вручную',          color:'#1b4d8f' },
+  approx:   { label:'До дома приблизительно',    color:'#4f8a74' },
+  street:   { label:'До улицы',                  color:'#a96a15' },
+  district: { label:'До микрорайона',            color:'#c98a2b' },
+  locality: { label:'До населённого пункта',     color:'#c0392b' },
+  region:   { label:'До района или области',     color:'#7d1f16' },
+  other:    { label:'Прочее',                    color:'#767d87' },
+  miss:     { label:'Не найдено',                color:'#0f1317' },
+  pending:  { label:'Ищется',                    color:'#c9ccd1' }
+};
+function geoCat(prec, kind){
+  if(prec === 'exact') return 'house';
+  if(prec === 'number' || prec === 'near' || prec === 'range') return 'approx';
+  if(prec === 'street') return 'street';
+  if(kind === 'locality') return 'locality';
+  if(kind === 'district') return 'district';
+  if(kind === 'area' || kind === 'province' || kind === 'country') return 'region';
+  return 'other';
+}
+
+var houses30 = null, sel30 = null;
+
+/* Сводка: кнопки по точности. Клик — на карте и в списке только эти дома. */
+function renderSum30(){
+  if(!document.getElementById('map30-sum')) return;   // сводка по точности убрана с вкладки
+  var cnt = {}; Object.keys(GEO_CATS).forEach(function(k){ cnt[k] = 0; });
+  houses30.forEach(function(h){ cnt[h.cat]++; });
+  document.getElementById('map30-sum').innerHTML = Object.keys(GEO_CATS).filter(function(k){ return cnt[k] > 0; })
+    .map(function(k){
+      return '<button class="geo-chip" type="button" data-gcat="'+k+'" aria-pressed="'+(sel30===k)+'">' +
+        '<i style="background:'+GEO_CATS[k].color+'"></i>'+GEO_CATS[k].label+' <b>'+fmtInt.format(cnt[k])+'</b></button>';
+    }).join('');
+}
+function renderList30(){
+  var order = Object.keys(GEO_CATS);
+  var list = houses30.filter(function(h){ return !sel30 || h.cat === sel30; }).slice()
+    .sort(function(a,b){ return (order.indexOf(a.cat)-order.indexOf(b.cat)) || (a.i-b.i); });
+  document.getElementById('list30-title').textContent = sel30 ? 'Список домов: ' + GEO_CATS[sel30].label.toLowerCase() : 'Список домов';
+  document.getElementById('list30-cnt').textContent = fmtInt.format(list.length);
+  document.getElementById('list30').innerHTML = list.map(function(h, n){
+    var d = h.d, pct = String(Math.round(d[5]*1000)/10).replace('.',',');
+    return '<button class="item" type="button" data-gi="'+h.i+'"'+(h.pm ? '' : ' title="Нет точки на карте"')+'>' +
+      '<span class="item-rank num">'+(n+1)+'</span>' +
+      '<span class="item-name wrap">'+esc(fmtAddr(d[0]))+'</span>' +
+      '<span class="item-cat"><i style="background:'+GEO_CATS[h.cat].color+'"></i>'+GEO_CATS[h.cat].label+'</span>' +
+      '<span class="item-cnt num" style="font-size:13px">'+pct+'%</span></button>';
+  }).join('');
+}
+var clu30 = null;
+function apply30(){
+  /* фильтр по точности: в кластер попадают только видимые дома, чтобы число в кружке было верным */
+  if(clu30){
+    clu30.items = houses30.filter(function(h){ return h.pm && (!sel30 || h.cat === sel30); }).map(function(h){ return h.pm; });
+    clu30.schedule();
+  }
+  renderSum30(); renderList30();
+}
+(document.getElementById('map30-sum') || document.createElement('div')).addEventListener('click', function(e){
+  var b = e.target.closest('[data-gcat]'); if(!b || !houses30) return;
+  var k = b.getAttribute('data-gcat');
+  sel30 = (sel30 === k) ? null : k;
+  apply30();
+});
+document.getElementById('list30').addEventListener('click', function(e){
+  var b = e.target.closest('[data-gi]'); if(!b || !houses30) return;
+  var h = houses30[+b.getAttribute('data-gi')];
+  if(!h || !h.pm || !ymap30) return;
+  document.getElementById('map30').scrollIntoView({ behavior:'smooth', block:'center' });
+  ymap30.setCenter(h.pm.geometry.getCoordinates(), 16, { duration:300 });
+  setTimeout(function(){
+    /* дом может оказаться внутри кружка с числом — тогда открываем его в балуне кластера */
+    var cp = clu30 && clu30.clusterOf(h.pm);
+    if(cp) cp.balloon.open(); else h.pm.balloon.open();
+  }, 400);
+});
+
+function drawDo30(){
+  var note = document.getElementById('map30-note');
+  if(typeof ymaps === 'undefined'){ note.textContent = 'Яндекс.Карты не загрузились: проверьте ключ и ограничение по домену'; return; }
+  var gen = ++map30Gen;
+  houses30 = DO30_DATA.map(function(d, i){ return { d:d, i:i, cat:'pending', pm:null }; });
+  apply30();
+  ymaps.ready(function(){
+    if(gen !== map30Gen) return;
+    if(!ymap30){
+      ymap30 = new ymaps.Map('map30', { center:[55.75,37.62], zoom:8, controls:['zoomControl','typeSelector','fullscreenControl'] },
+                             { suppressMapOpenBlock:true });
+    }
+    ymap30.geoObjects.removeAll();
+    if(clu30) clu30.destroy();
+    var col = clu30 = new OverlapLayer(ymap30);
+    var cache = geoCache(), now = Date.now(), queue = [], shown = 0, taken = {};
+
+    function put(h, c, cat){
+      var key = c[0].toFixed(5)+','+c[1].toFixed(5), k = taken[key] || 0;
+      taken[key] = k + 1;
+      var p = c, d = h.d;
+      if(k){ var a = k * 2.4, dd = 0.00018 * Math.sqrt(k); p = [c[0] + dd*Math.cos(a), c[1] + dd*1.7*Math.sin(a)]; }
+      h.cat = cat;
+      h.pm = new ymaps.Placemark(p, { balloonContent:balloon30(d, cat),
+        hintContent:fmtAddr(d[0]) + ' · остаток ' + Math.round(d[5]*100) + '%', grp:'red' }, HOUSE_ICON_RED);
+      if(!sel30 || sel30 === cat) col.add(h.pm);
+      shown++;
+    }
+    function fit(){ if(shown) try{ ymap30.setBounds(col.getBounds(), { checkZoomRange:true, zoomMargin:40 }); }catch(e){} }
+    function status(extra){
+      note.textContent = 'На карте ' + fmtInt.format(shown) + ' из ' + fmtInt.format(DO30_DATA.length) + ' домов' + (extra ? ' · ' + extra : '');
+    }
+    /* Из кэша берутся записи с сохранённой точностью; старые записи без неё запрашиваются заново. */
+    houses30.forEach(function(h){
+      var m = MANUAL_COORDS[norm(h.d[0])];
+      if(m){ put(h, m, 'manual'); return; }
+      var e = cache[norm(h.d[0])];
+      if(e && now - e.t < GEO_TTL && e.miss){ h.cat = 'miss'; return; }
+      if(e && e.c && e.p && now - e.t < GEO_TTL) put(h, e.c, geoCat(e.p, e.k)); else queue.push(h);
+    });
+    apply30(); fit(); status(queue.length ? 'поиск адресов: ' + queue.length : '');
+    (function next(){
+      if(gen !== map30Gen) return;
+      if(!queue.length){ fit(); status(''); return; }
+      if(!dayTake()){ fit(); status('суточный лимит геокодера исчерпан, остальные дома появятся завтра'); return; }
+      var h = queue.shift();
+      ymaps.geocode(h.d[0], { results:1, boundedBy:MO_BOUNDS, strictBounds:true }).then(function(res){
+        var g = res.geoObjects.get(0), cc = geoCache();
+        if(g){
+          var c = g.geometry.getCoordinates();
+          var prec = g.properties.get('metaDataProperty.GeocoderMetaData.precision') || 'other';
+          var kind = g.properties.get('metaDataProperty.GeocoderMetaData.kind') || '';
+          cc[norm(h.d[0])] = { c:c, t:Date.now(), p:prec, k:kind }; geoSave(cc);
+          if(gen === map30Gen) put(h, c, geoCat(prec, kind));
+        } else {
+          cc[norm(h.d[0])] = { miss:true, t:Date.now() }; geoSave(cc);
+          h.cat = 'miss';
+        }
+        if(gen === map30Gen) apply30();
+        status('поиск адресов: ' + queue.length);
+        setTimeout(next, 120);
+      }, function(){ h.cat = 'miss'; if(gen === map30Gen) apply30(); setTimeout(next, 300); });
+    })();
+  });
+}
+var mapBtns = document.querySelectorAll('[data-mapf]');
+for(var mb=0;mb<mapBtns.length;mb++){
+  mapBtns[mb].addEventListener('click', function(){
+    var f = this.getAttribute('data-mapf');
+    mapFilter = (mapFilter === f) ? null : f;
+    for(var q=0;q<mapBtns.length;q++) mapBtns[q].setAttribute('aria-pressed', mapBtns[q].getAttribute('data-mapf') === mapFilter ? 'true' : 'false');
+    if(rows.length) drawMap();
+  });
+}
+document.getElementById('btn-spots').addEventListener('click', function(){
+  spotsOn = !spotsOn;
+  this.setAttribute('aria-pressed', spotsOn ? 'true' : 'false');
+  if(rows.length) drawMap();
+});
+document.getElementById('nav-map').addEventListener('click', function(){ switchTo(tab === 'map' ? 'main' : 'map'); });
+
+load();
+})();
+</script>
+</body>
+</html>
